@@ -1,6 +1,8 @@
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Wallet, Settings, TrendingUp } from 'lucide-react';
+
 export const Navbar = () => {
   const location = useLocation();
   const navItems = [{
@@ -20,13 +22,14 @@ export const Navbar = () => {
     path: '/settings',
     icon: <Settings className="w-4 h-4" />
   }];
-  return <div className="w-full bg-[#0a101a]/90 backdrop-blur-md border-b border-gray-800/50 fixed top-0 left-0 z-50">
+  
+  return <div className="w-full bg-[#050A3A]/90 backdrop-blur-md border-b border-gray-800/50 fixed top-0 left-0 z-50">
       <div className="max-w-[1600px] mx-auto px-4">
-        <div className="flex justify-between items-center h-16 bg-[#000448]">
+        <div className="flex justify-between items-center h-16 bg-[#050A3A]">
           <Link to="/" className="flex items-center space-x-2">
             <div className="flex items-center">
-              <img src="/lovable-uploads/a5c96f48-5226-40be-8f2f-73eb8de41bd8.png" alt="Luckpier" className="h-8 object-contain" />
-              <span className="ml-2 text-xl font-semibold text-white">LUCKPIER</span>
+              <img src="/lovable-uploads/15ec73a8-3b8d-4601-b910-7fc23b9933a2.png" alt="Luckpier LP" className="h-8 object-contain" />
+              <img src="/lovable-uploads/1bb48fbd-7898-43d2-b03a-99e73b5ef678.png" alt="Luckpier" className="h-5 ml-2 object-contain" />
             </div>
           </Link>
           
@@ -46,4 +49,5 @@ export const Navbar = () => {
       </div>
     </div>;
 };
+
 export default Navbar;
