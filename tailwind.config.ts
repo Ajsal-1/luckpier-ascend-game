@@ -19,6 +19,9 @@ export default {
 			}
 		},
 		extend: {
+			fontFamily: {
+				inter: ["Inter", "sans-serif"],
+			},
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
@@ -65,17 +68,15 @@ export default {
 				},
 				luckpier: {
 					navy: {
-						DEFAULT: '#000066',  // Deep navy blue
-						light: '#0000AA',
-						dark: '#000033',
+						DEFAULT: 'hsl(var(--luckpier-navy))',
+						dark: 'hsl(var(--luckpier-navy-dark))',
+						light: 'hsl(var(--luckpier-navy-light))',
 					},
 					gold: {
-						DEFAULT: '#FFD700', // Gold
-						light: '#FFEC8B',
-						dark: '#DAA520',
+						DEFAULT: 'hsl(var(--luckpier-gold))',
+						dark: 'hsl(var(--luckpier-gold-dark))',
+						light: 'hsl(var(--luckpier-gold-light))',
 					},
-					dark: '#000033',
-					light: '#F7F7F7',
 				},
 			},
 			borderRadius: {
@@ -106,7 +107,7 @@ export default {
 				},
 				'pulse-win': {
 					'0%, 100%': { transform: 'scale(1)' },
-					'50%': { transform: 'scale(1.1)' }
+					'50%': { transform: 'scale(1.05)' }
 				},
 				'fade-in': {
 					'0%': { opacity: '0' },
@@ -120,14 +121,10 @@ export default {
 					'0%': { transform: 'translateX(100%)', opacity: '0' },
 					'100%': { transform: 'translateX(0)', opacity: '1' }
 				},
-				'sparkle': {
-					'0%, 100%': { opacity: '0' },
-					'50%': { opacity: '1' }
+				'chart-grow': {
+					'0%': { transform: 'scaleX(0) scaleY(0)', transformOrigin: 'left bottom' },
+					'100%': { transform: 'scaleX(1) scaleY(1)', transformOrigin: 'left bottom' }
 				},
-				'gold-pulse': {
-					'0%, 100%': { boxShadow: '0 0 5px rgba(255, 215, 0, 0.5)' },
-					'50%': { boxShadow: '0 0 20px rgba(255, 215, 0, 0.8)' }
-				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
@@ -137,14 +134,8 @@ export default {
 				'fade-in': 'fade-in 0.3s ease-out',
 				'slide-up': 'slide-up 0.3s ease-out',
 				'slide-in-right': 'slide-in-right 0.3s ease-out',
-				'sparkle': 'sparkle 1.5s ease-in-out infinite',
-				'gold-pulse': 'gold-pulse 2s infinite'
+				'chart-grow': 'chart-grow 0.5s ease-out',
 			},
-			backgroundImage: {
-				'gradient-blue': 'linear-gradient(90deg, rgba(15,160,206,1) 0%, rgba(30,174,219,1) 100%)',
-				'gradient-gold': 'linear-gradient(90deg, rgba(218,165,32,1) 0%, rgba(255,215,0,1) 100%)',
-				'gradient-navy': 'linear-gradient(90deg, rgba(0,0,51,1) 0%, rgba(0,0,102,1) 100%)',
-			}
 		}
 	},
 	plugins: [require("tailwindcss-animate")],

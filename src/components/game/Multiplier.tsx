@@ -74,27 +74,45 @@ const Multiplier: React.FC<MultiplierProps> = ({
 
   return (
     <div className={cn(
-      "relative flex items-center justify-center w-full h-full",
+      "relative flex items-center justify-center w-full h-full min-h-[240px] md:min-h-[320px]",
       (isCrashed || winValue) ? "animate-pulse-win" : ""
     )}>
-      <div className={cn(
-        "text-7xl sm:text-8xl md:text-9xl font-bold transition-all duration-100 ease-in-out",
-        isPlaying && !isCrashed && !winValue ? "animate-multiplier-grow" : "",
-        isCrashed ? "multiplier-crashed text-red-500" : "",
-        winValue ? "multiplier-win text-luckpier-gold" : "multiplier-text",
-      )}>
+      {isPlaying && !isCrashed && (
+        <div className="absolute inset-0 flex items-end">
+          <div 
+            className="h-[80%] w-full animate-chart-grow"
+            style={{
+              background: "linear-gradient(to top, rgba(255,79,111,0.1) 0%, rgba(255,79,111,0) 100%)"
+            }}
+          >
+            <div 
+              className="w-full h-0.5 absolute bottom-0 left-0 right-0" 
+              style={{ background: "linear-gradient(to right, rgba(255,79,111,0) 0%, rgba(255,79,111,0.5) 100%)" }}
+            />
+          </div>
+        </div>
+      )}
+      
+      <div 
+        className={cn(
+          "text-7xl sm:text-8xl font-bold transition-all duration-100 ease-in-out z-10",
+          isPlaying && !isCrashed && !winValue ? "text-pink-500" : "",
+          isCrashed ? "multiplier-crashed" : "",
+          winValue ? "multiplier-win" : "",
+        )}
+      >
         {displayValue}
       </div>
       
       {isCrashed && (
-        <div className="absolute -bottom-14 left-1/2 transform -translate-x-1/2 text-red-500 text-xl sm:text-2xl font-bold animate-fade-in">
-          CRASHED!
+        <div className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 text-pink-500 text-xl font-bold animate-fade-in tracking-wider">
+          CRASHED
         </div>
       )}
       
       {winValue && (
-        <div className="absolute -bottom-14 left-1/2 transform -translate-x-1/2 text-luckpier-gold text-xl sm:text-2xl font-bold animate-fade-in">
-          WIN!
+        <div className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 text-luckpier-gold text-xl font-bold animate-fade-in tracking-wider">
+          CASHED OUT
         </div>
       )}
     </div>

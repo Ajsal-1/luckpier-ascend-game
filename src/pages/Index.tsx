@@ -58,7 +58,14 @@ const Index = () => {
   const [playerWin, setPlayerWin] = useState<number | null>(null);
   
   // History and players
-  const [gameHistory, setGameHistory] = useState<HistoryItem[]>([]);
+  const [gameHistory, setGameHistory] = useState<HistoryItem[]>([
+    { id: 'game-1', multiplier: 1.27 },
+    { id: 'game-2', multiplier: 2.48 },
+    { id: 'game-3', multiplier: 7.32 },
+    { id: 'game-4', multiplier: 1.07 },
+    { id: 'game-5', multiplier: 1.20 },
+    { id: 'game-6', multiplier: 1.54 },
+  ]);
   const [players, setPlayers] = useState<Player[]>(generateRandomPlayers(10));
 
   // Generate a random crash point between 1.1 and 10
@@ -213,15 +220,16 @@ const Index = () => {
   }, [gameState, players]);
 
   return (
-    <div className="flex flex-col w-full min-h-[calc(100vh-160px)]">
+    <div className="w-full">
       {/* Game History */}
-      <div className="w-full mb-4">
+      <div className="w-full">
         <GameHistory history={gameHistory} />
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Betting Panel (Left on desktop, top on mobile) */}
-        <div className="lg:col-span-1 order-2 lg:order-1">
+      {/* Game area with multiplier, betting panel and leaderboard */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        {/* Betting Panel (Left on desktop) */}
+        <div className="lg:col-span-3 order-3 lg:order-1">
           <BettingPanel
             isPlaying={gameState === GAME_STATE.PLAYING}
             isCrashed={gameState === GAME_STATE.CRASHED}
@@ -232,8 +240,8 @@ const Index = () => {
           />
         </div>
         
-        {/* Multiplier (Center) */}
-        <div className="lg:col-span-1 flex items-center justify-center min-h-[250px] md:min-h-[300px] order-1 lg:order-2">
+        {/* Multiplier Chart (Center) */}
+        <div className="lg:col-span-6 order-1 lg:order-2 bg-[#131c29] border border-gray-800/40 rounded-md flex items-center justify-center min-h-[240px] md:min-h-[320px] p-4">
           <Multiplier 
             isPlaying={gameState === GAME_STATE.PLAYING}
             isCrashed={gameState === GAME_STATE.CRASHED}
@@ -244,7 +252,7 @@ const Index = () => {
         </div>
         
         {/* Leaderboard (Right) */}
-        <div className="lg:col-span-1 order-3">
+        <div className="lg:col-span-3 order-2 lg:order-3">
           <LeaderBoard players={players} />
         </div>
       </div>

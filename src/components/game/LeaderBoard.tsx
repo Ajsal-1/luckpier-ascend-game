@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { cn } from '@/lib/utils';
 
 interface Player {
   id: string;
@@ -8,26 +9,29 @@ interface Player {
   multiplier: number | null;
 }
 
-interface LeaderboardProps {
+interface LeaderBoardProps {
   players: Player[];
 }
 
-const LeaderBoard: React.FC<LeaderboardProps> = ({ players }) => {
+const LeaderBoard: React.FC<LeaderBoardProps> = ({ players }) => {
   return (
-    <div className="card-glass p-4 w-full animate-fade-in overflow-hidden">
-      <h2 className="text-lg font-medium mb-3">Live Bets</h2>
+    <div className="bg-[#131c29] border border-gray-800/40 rounded-md h-full overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800/40">
+        <h2 className="text-base font-medium">Players</h2>
+        <span className="text-xs text-gray-400">{players.length} active</span>
+      </div>
       
-      <div className="overflow-y-auto max-h-[300px] pr-1 -mr-1">
-        <table className="w-full">
-          <thead className="text-gray-400 text-xs">
-            <tr className="border-b border-gray-800">
-              <th className="py-2 text-left">Player</th>
-              <th className="py-2 text-right">Bet Amount</th>
-              <th className="py-2 text-right">Multiplier</th>
-              <th className="py-2 text-right">Profit</th>
+      <div className="overflow-y-auto max-h-[400px] scrollbar-thin">
+        <table className="game-table">
+          <thead className="sticky top-0 bg-[#131c29] z-10">
+            <tr>
+              <th>Player</th>
+              <th className="text-right">Bet</th>
+              <th className="text-right">Multiplier</th>
+              <th className="text-right">Payout</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-800/50">
+          <tbody className="divide-y divide-gray-800/20">
             {players.map((player) => {
               const profit = player.multiplier ? (player.amount * player.multiplier) - player.amount : 0;
               const isWaiting = player.multiplier === null;
@@ -35,24 +39,38 @@ const LeaderBoard: React.FC<LeaderboardProps> = ({ players }) => {
               return (
                 <tr 
                   key={player.id} 
-                  className="hover:bg-white/5 transition-colors text-sm animate-slide-up"
+                  className="hover:bg-gray-800/30 transition-colors text-sm"
                 >
-                  <td className="py-3 truncate max-w-[100px]">{player.name}</td>
-                  <td className="py-3 text-right">${player.amount.toFixed(2)}</td>
-                  <td className="py-3 text-right">
+                  <td className="max-w-[100px] truncate">
+                    <span className={player.name === "You" ? "font-medium text-white" : "text-gray-300"}>
+                      {player.name}
+                    </span>
+                  </td>
+                  <td className="text-right">${player.amount.toFixed(2)}</td>
+                  <td className="text-right">
                     {isWaiting ? (
-                      <span className="text-luckpier-blue">Playing...</span>
+                      <span className="text-blue-400">Playing...</span>
                     ) : (
-                      <span className={profit > 0 ? "text-green-400" : "text-red-400"}>
+                      <span 
+                        className={cn(
+                          "font-medium",
+                          profit > 0 ? "text-green-500" : "text-pink-500"
+                        )}
+                      >
                         {player.multiplier?.toFixed(2)}x
                       </span>
                     )}
                   </td>
-                  <td className="py-3 text-right">
+                  <td className="text-right">
                     {isWaiting ? (
                       <span className="text-gray-500">-</span>
                     ) : (
-                      <span className={profit > 0 ? "text-green-400" : "text-red-400"}>
+                      <span 
+                        className={cn(
+                          "font-medium",
+                          profit > 0 ? "text-green-500" : "text-pink-500"
+                        )}
+                      >
                         {profit > 0 ? "+" : ""}{profit.toFixed(2)}
                       </span>
                     )}

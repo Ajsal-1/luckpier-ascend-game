@@ -1,11 +1,13 @@
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
+    --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
 
     --card: 0 0% 100%;
@@ -14,7 +16,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 196 77% 49%;
+    --primary: 222 47% 11%;
     --primary-foreground: 210 40% 98%;
 
     --secondary: 210 40% 96.1%;
@@ -33,7 +35,7 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 196 77% 49%;
 
-    --radius: 0.75rem;
+    --radius: 0.5rem;
 
     --sidebar-background: 222 47% 11%;
     --sidebar-foreground: 210 40% 98%;
@@ -44,9 +46,13 @@
     --sidebar-border: 217.2 32.6% 17.5%;
     --sidebar-ring: 196 77% 49%;
     
-    /* Updated brand colors */
-    --luckpier-navy: 240 100% 10%;
+    /* Brand colors */
+    --luckpier-navy: 222 47% 11%;
+    --luckpier-navy-dark: 222 47% 7%;
+    --luckpier-navy-light: 222 47% 15%;
     --luckpier-gold: 45 100% 50%;
+    --luckpier-gold-dark: 45 100% 45%;
+    --luckpier-gold-light: 45 100% 55%;
   }
 
   .dark {
@@ -59,7 +65,7 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 196 77% 49%;
+    --primary: 210 40% 98%;
     --primary-foreground: 222.2 47.4% 11.2%;
 
     --secondary: 217.2 32.6% 17.5%;
@@ -87,9 +93,13 @@
     --sidebar-border: 217.2 32.6% 17.5%;
     --sidebar-ring: 196 77% 49%;
     
-    /* Updated brand colors */
-    --luckpier-navy: 240 100% 10%;
+    /* Brand colors */
+    --luckpier-navy: 222 47% 11%;
+    --luckpier-navy-dark: 222 47% 7%;
+    --luckpier-navy-light: 222 47% 15%;
     --luckpier-gold: 45 100% 50%;
+    --luckpier-gold-dark: 45 100% 45%;
+    --luckpier-gold-light: 45 100% 55%;
   }
 }
 
@@ -99,63 +109,69 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-inter;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
 @layer components {
   .bet-input {
-    @apply bg-luckpier-navy/70 text-white border border-luckpier-gold/30 rounded-lg px-4 py-2
-    focus:outline-none focus:border-luckpier-gold focus:ring-1 focus:ring-luckpier-gold/50
+    @apply bg-gray-800/70 text-white border border-gray-700 rounded px-3 py-2
+    focus:outline-none focus:border-luckpier-gold/60 focus:ring-1 focus:ring-luckpier-gold/20
     placeholder-gray-500 w-full transition-all;
   }
 
-  .game-button {
-    @apply rounded-lg font-medium transition-all duration-200 flex items-center justify-center
-    focus:outline-none focus:ring-2 focus:ring-luckpier-gold/50;
+  .bet-button {
+    @apply rounded font-medium transition-all duration-200 flex items-center justify-center
+    focus:outline-none focus:ring-1 focus:ring-luckpier-gold/30;
   }
 
   .primary-button {
-    @apply game-button bg-gradient-navy text-white hover:shadow-lg hover:shadow-luckpier-gold/20
-    active:scale-95;
+    @apply bet-button bg-luckpier-gold text-luckpier-navy font-semibold hover:bg-luckpier-gold-light
+    active:scale-[0.98];
   }
 
-  .accent-button {
-    @apply game-button bg-gradient-gold text-luckpier-navy hover:shadow-lg hover:shadow-luckpier-gold/20
-    active:scale-95 font-semibold;
+  .secondary-button {
+    @apply bet-button bg-gray-800 text-white hover:bg-gray-700
+    active:scale-[0.98];
   }
 
   .card-glass {
-    @apply bg-white/10 backdrop-blur-md border border-white/20 rounded-xl shadow-lg;
-  }
-
-  .dark .card-glass {
-    @apply bg-luckpier-navy/80 backdrop-blur-md border border-luckpier-gold/20 rounded-xl shadow-lg;
+    @apply bg-gray-800/90 border border-gray-700 rounded shadow-sm;
   }
   
   .multiplier-text {
     @apply font-bold tracking-tighter;
-    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
   }
   
   .multiplier-crashed {
-    @apply font-bold tracking-tighter;
-    text-shadow: 0 0 10px rgba(255, 59, 48, 0.7);
+    @apply font-bold tracking-tighter text-pink-500;
   }
   
   .multiplier-win {
-    @apply font-bold tracking-tighter;
-    text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+    @apply font-bold tracking-tighter text-luckpier-gold;
+  }
+
+  /* Table styles */
+  .game-table {
+    @apply w-full text-sm;
+  }
+
+  .game-table th {
+    @apply text-xs text-gray-400 text-left py-2.5 px-2 border-b border-gray-700/50 font-medium;
+  }
+
+  .game-table td {
+    @apply py-2.5 px-2 border-b border-gray-700/30;
   }
 }
 
 @layer utilities {
-  .text-shadow-lg {
-    text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  .text-shadow-sm {
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
   }
   
-  .text-shadow-gold {
-    text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+  .text-gradient {
+    @apply bg-gradient-to-r from-luckpier-gold to-amber-300 bg-clip-text text-transparent;
   }
 }
