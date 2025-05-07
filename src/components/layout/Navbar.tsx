@@ -26,7 +26,7 @@ export const Navbar = () => {
     icon: <Settings className="w-4 h-4" />
   }];
   
-  return <div className="w-full bg-[#050A3A]/90 backdrop-blur-md border-b border-gray-800/50 fixed top-0 left-0 z-50">
+  return <div className="w-full bg-[#050A3A] backdrop-blur-md border-b border-gray-800/50 fixed top-0 left-0 z-50">
       <div className="max-w-[1600px] mx-auto px-4">
         <div className="flex justify-between items-center h-16 bg-[#050A3A]">
           <Link to="/" className="flex items-center space-x-2">
