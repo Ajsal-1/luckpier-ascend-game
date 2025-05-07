@@ -41,7 +41,7 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
   };
 
   return (
-    <div className="bg-gray-900/90 backdrop-blur-lg border border-gray-700/80 rounded-xl shadow-lg shadow-blue-500/10 p-5 w-full max-w-md mx-auto transition-all">
+    <div className="bg-gray-900/90 backdrop-blur-lg border border-gray-700/80 rounded-xl shadow-lg shadow-blue-500/10 p-5 w-full max-w-md transition-all fixed bottom-20 md:bottom-24 lg:static lg:mx-auto">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-medium bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">Place your bet</h2>
         {remainingTime !== null && !isPlaying && (
