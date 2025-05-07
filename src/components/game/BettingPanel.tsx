@@ -41,9 +41,9 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
   };
 
   return (
-    <div className="card-glass p-5 w-full max-w-md mx-auto">
+    <div className="bg-gray-900/90 backdrop-blur-lg border border-gray-700/80 rounded-xl shadow-lg shadow-blue-500/10 p-5 w-full max-w-md mx-auto transition-all">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-medium">Place your bet</h2>
+        <h2 className="text-xl font-medium bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">Place your bet</h2>
         {remainingTime !== null && !isPlaying && (
           <div className="text-luckpier-blue font-medium">
             Next round in {formatTime(remainingTime)}s
@@ -98,24 +98,28 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
         <div className="pt-2">
           {!isPlaying ? (
             <button 
-              className="primary-button w-full py-3 text-lg"
+              className="primary-button w-full py-3 text-lg relative overflow-hidden group"
               onClick={handlePlaceBet}
               disabled={isCrashed === false && remainingTime !== null}
             >
-              {isCrashed === false && remainingTime !== null
-                ? `Wait ${formatTime(remainingTime)}s`
-                : "Place Bet"}
+              <span className="relative z-10">
+                {isCrashed === false && remainingTime !== null
+                  ? `Wait ${formatTime(remainingTime)}s`
+                  : "Place Bet"}
+              </span>
+              <span className="absolute inset-0 bg-gradient-to-r from-blue-600 to-blue-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
             </button>
           ) : (
             <button 
               className={cn(
-                "accent-button w-full py-3 text-lg",
+                "accent-button w-full py-3 text-lg relative overflow-hidden group",
                 hasWon ? "opacity-50 cursor-not-allowed" : ""
               )}
               onClick={onCashout}
               disabled={hasWon || isCrashed}
             >
-              Cash Out
+              <span className="relative z-10">Cash Out</span>
+              <span className="absolute inset-0 bg-gradient-to-r from-amber-500 to-amber-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
             </button>
           )}
         </div>
