@@ -127,7 +127,7 @@
   }
   
   .multiplier-text {
-    @apply font-bold tracking-tighter text-shadow-lg;
+    @apply font-bold tracking-tighter;
     text-shadow: 0 0 10px rgba(30, 174, 219, 0.5);
   }
   
@@ -139,5 +139,11 @@
   .multiplier-win {
     @apply font-bold tracking-tighter;
     text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+  }
+}
+
+@layer utilities {
+  .text-shadow-lg {
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
   }
 }
