@@ -2,9 +2,12 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Wallet, Settings, TrendingUp } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export const Navbar = () => {
   const location = useLocation();
+  const isMobile = useIsMobile();
+  
   const navItems = [{
     name: 'Home',
     path: '/',
@@ -28,8 +31,16 @@ export const Navbar = () => {
         <div className="flex justify-between items-center h-16 bg-[#050A3A]">
           <Link to="/" className="flex items-center space-x-2">
             <div className="flex items-center">
-              <img src="/lovable-uploads/15ec73a8-3b8d-4601-b910-7fc23b9933a2.png" alt="Luckpier LP" className="h-8 object-contain" />
-              <img src="/lovable-uploads/1bb48fbd-7898-43d2-b03a-99e73b5ef678.png" alt="Luckpier" className="h-5 ml-2 object-contain" />
+              <img 
+                src="/lovable-uploads/15ec73a8-3b8d-4601-b910-7fc23b9933a2.png" 
+                alt="Luckpier LP" 
+                className="h-8 sm:h-9 md:h-10 object-contain" 
+              />
+              <img 
+                src="/lovable-uploads/1bb48fbd-7898-43d2-b03a-99e73b5ef678.png" 
+                alt="Luckpier" 
+                className={`h-5 sm:h-6 md:h-7 ml-2 sm:ml-3 object-contain ${isMobile ? 'max-w-[100px]' : ''}`}
+              />
             </div>
           </Link>
           
