@@ -41,11 +41,11 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
   };
 
   return (
-    <div className="bg-gray-900/90 backdrop-blur-lg border border-gray-700/80 rounded-xl shadow-lg shadow-blue-500/10 p-5 w-full max-w-md transition-all fixed bottom-20 md:bottom-24 lg:static lg:mx-auto">
+    <div className="bg-luckpier-navy/95 backdrop-blur-lg border-2 border-luckpier-gold/30 rounded-xl shadow-lg shadow-luckpier-gold/10 p-5 w-full max-w-md transition-all fixed bottom-20 md:bottom-24 lg:static lg:mx-auto">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-medium bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">Place your bet</h2>
+        <h2 className="text-xl font-bold bg-gradient-to-r from-luckpier-gold to-amber-300 bg-clip-text text-transparent">Place your bet</h2>
         {remainingTime !== null && !isPlaying && (
-          <div className="text-luckpier-blue font-medium">
+          <div className="text-luckpier-gold font-medium">
             Next round in {formatTime(remainingTime)}s
           </div>
         )}
@@ -76,7 +76,7 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
               checked={useAutoCashout}
               onChange={(e) => setUseAutoCashout(e.target.checked)}
               disabled={isPlaying}
-              className="w-4 h-4 accent-luckpier-blue"
+              className="w-4 h-4 accent-luckpier-gold"
             />
             <label htmlFor="useAutoCashout" className="text-gray-300 text-sm">
               Auto Cashout
@@ -107,7 +107,7 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
                   ? `Wait ${formatTime(remainingTime)}s`
                   : "Place Bet"}
               </span>
-              <span className="absolute inset-0 bg-gradient-to-r from-blue-600 to-blue-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+              <span className="absolute inset-0 bg-gradient-to-r from-luckpier-navy-dark to-luckpier-navy-light opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
             </button>
           ) : (
             <button 
@@ -119,7 +119,7 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
               disabled={hasWon || isCrashed}
             >
               <span className="relative z-10">Cash Out</span>
-              <span className="absolute inset-0 bg-gradient-to-r from-amber-500 to-amber-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+              <span className="absolute inset-0 bg-gradient-to-r from-luckpier-gold-dark to-luckpier-gold-light opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
             </button>
           )}
         </div>

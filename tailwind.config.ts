@@ -64,17 +64,17 @@ export default {
 					ring: 'hsl(var(--sidebar-ring))'
 				},
 				luckpier: {
-					blue: {
-						DEFAULT: '#1EAEDB',
-						light: '#33C3F0',
-						dark: '#0FA0CE',
+					navy: {
+						DEFAULT: '#000066',  // Deep navy blue
+						light: '#0000AA',
+						dark: '#000033',
 					},
 					gold: {
-						DEFAULT: '#FFD700',
+						DEFAULT: '#FFD700', // Gold
 						light: '#FFEC8B',
 						dark: '#DAA520',
 					},
-					dark: '#121212',
+					dark: '#000033',
 					light: '#F7F7F7',
 				},
 			},
@@ -123,6 +123,10 @@ export default {
 				'sparkle': {
 					'0%, 100%': { opacity: '0' },
 					'50%': { opacity: '1' }
+				},
+				'gold-pulse': {
+					'0%, 100%': { boxShadow: '0 0 5px rgba(255, 215, 0, 0.5)' },
+					'50%': { boxShadow: '0 0 20px rgba(255, 215, 0, 0.8)' }
 				}
 			},
 			animation: {
@@ -133,11 +137,13 @@ export default {
 				'fade-in': 'fade-in 0.3s ease-out',
 				'slide-up': 'slide-up 0.3s ease-out',
 				'slide-in-right': 'slide-in-right 0.3s ease-out',
-				'sparkle': 'sparkle 1.5s ease-in-out infinite'
+				'sparkle': 'sparkle 1.5s ease-in-out infinite',
+				'gold-pulse': 'gold-pulse 2s infinite'
 			},
 			backgroundImage: {
 				'gradient-blue': 'linear-gradient(90deg, rgba(15,160,206,1) 0%, rgba(30,174,219,1) 100%)',
 				'gradient-gold': 'linear-gradient(90deg, rgba(218,165,32,1) 0%, rgba(255,215,0,1) 100%)',
+				'gradient-navy': 'linear-gradient(90deg, rgba(0,0,51,1) 0%, rgba(0,0,102,1) 100%)',
 			}
 		}
 	},
