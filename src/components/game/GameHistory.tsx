@@ -29,11 +29,11 @@ const GameHistory: React.FC<GameHistoryProps> = ({ history }) => {
             className="text-center"
           >
             <div 
-              style={{ backgroundColor: `${getMultiplierColor(item.multiplier)}20`, color: getMultiplierColor(item.multiplier) }}
               className={cn(
                 "flex items-center justify-center min-w-[56px] h-9 rounded font-medium text-sm border",
               )}
               style={{
+                backgroundColor: `${getMultiplierColor(item.multiplier)}20`,
                 borderColor: `${getMultiplierColor(item.multiplier)}40`,
                 color: getMultiplierColor(item.multiplier)
               }}
