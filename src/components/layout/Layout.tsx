@@ -6,9 +6,9 @@ import MobileNav from './MobileNav';
 
 const Layout = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-950 text-white">
+    <div className="min-h-screen w-full bg-gradient-to-b from-gray-900 to-gray-950 text-white">
       <Navbar />
-      <main className="container mx-auto px-4 pt-20 pb-20 md:pb-8">
+      <main className="w-full px-0 pt-20 pb-20 md:pb-8">
         <Outlet />
       </main>
       <MobileNav />
