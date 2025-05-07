@@ -34,7 +34,7 @@ export const Navbar = () => {
               <img 
                 src="/lovable-uploads/15ec73a8-3b8d-4601-b910-7fc23b9933a2.png" 
                 alt="Luckpier LP" 
-                className="h-8 sm:h-9 md:h-10 object-contain" 
+                className="h-10 sm:h-12 md:h-14 object-contain" 
               />
               <img 
                 src="/lovable-uploads/7f3111c9-56fc-4534-9f51-fb533255647f.png" 
