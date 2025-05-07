@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,7 +62,21 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
-				}
+				},
+				luckpier: {
+					blue: {
+						DEFAULT: '#1EAEDB',
+						light: '#33C3F0',
+						dark: '#0FA0CE',
+					},
+					gold: {
+						DEFAULT: '#FFD700',
+						light: '#FFEC8B',
+						dark: '#DAA520',
+					},
+					dark: '#121212',
+					light: '#F7F7F7',
+				},
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
@@ -84,11 +99,45 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'multiplier-grow': {
+					'0%': { transform: 'scale(0.98)', opacity: '0.8' },
+					'100%': { transform: 'scale(1)', opacity: '1' }
+				},
+				'pulse-win': {
+					'0%, 100%': { transform: 'scale(1)' },
+					'50%': { transform: 'scale(1.1)' }
+				},
+				'fade-in': {
+					'0%': { opacity: '0' },
+					'100%': { opacity: '1' }
+				},
+				'slide-up': {
+					'0%': { transform: 'translateY(10px)', opacity: '0' },
+					'100%': { transform: 'translateY(0)', opacity: '1' }
+				},
+				'slide-in-right': {
+					'0%': { transform: 'translateX(100%)', opacity: '0' },
+					'100%': { transform: 'translateX(0)', opacity: '1' }
+				},
+				'sparkle': {
+					'0%, 100%': { opacity: '0' },
+					'50%': { opacity: '1' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'multiplier-grow': 'multiplier-grow 0.5s ease-out infinite alternate',
+				'pulse-win': 'pulse-win 0.5s ease-in-out',
+				'fade-in': 'fade-in 0.3s ease-out',
+				'slide-up': 'slide-up 0.3s ease-out',
+				'slide-in-right': 'slide-in-right 0.3s ease-out',
+				'sparkle': 'sparkle 1.5s ease-in-out infinite'
+			},
+			backgroundImage: {
+				'gradient-blue': 'linear-gradient(90deg, rgba(15,160,206,1) 0%, rgba(30,174,219,1) 100%)',
+				'gradient-gold': 'linear-gradient(90deg, rgba(218,165,32,1) 0%, rgba(255,215,0,1) 100%)',
 			}
 		}
 	},
