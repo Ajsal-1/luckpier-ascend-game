@@ -37,9 +37,9 @@ export const Navbar = () => {
                 className="h-8 sm:h-9 md:h-10 object-contain" 
               />
               <img 
-                src="/lovable-uploads/1bb48fbd-7898-43d2-b03a-99e73b5ef678.png" 
+                src="/lovable-uploads/7f3111c9-56fc-4534-9f51-fb533255647f.png" 
                 alt="Luckpier" 
-                className={`h-5 sm:h-6 md:h-7 ml-2 sm:ml-3 object-contain ${isMobile ? 'max-w-[100px]' : ''}`}
+                className={`h-7 sm:h-9 md:h-11 ml-2 sm:ml-3 object-contain ${isMobile ? 'max-w-[160px]' : ''}`}
               />
             </div>
           </Link>
