@@ -1,19 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { cn } from '@/lib/utils';
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { CheckCircle } from "lucide-react";
-
-interface BettingPanelProps {
-  isPlaying: boolean;
-  isCrashed: boolean;
-  hasWon: boolean;
-  onPlaceBet: (amount: number, autoCashout: number | null) => void;
-  onCashout: () => void;
-  remainingTime: number | null;
-  balance?: number;
-  isBetPlaced?: boolean;
-}
+import BetAmountInput from './betting/BetAmountInput';
+import AutoCashoutInput from './betting/AutoCashoutInput';
+import GameActionButton from './betting/GameActionButton';
+import StatusMessage from './betting/StatusMessage';
+import BalanceDisplay from './betting/BalanceDisplay';
+import { BettingPanelProps } from './betting/types';
 
 const BettingPanel: React.FC<BettingPanelProps> = ({
   isPlaying,
@@ -62,11 +53,6 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
       onPlaceBet(amount, autoValue);
     }
   };
-
-  const formatTime = (seconds: number): string => {
-    // Ensure timer doesn't show negative values
-    return Math.max(0, seconds).toFixed(1);
-  };
   
   const handleBetAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -82,6 +68,10 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
     if (value === "" || /^\d+(\.\d{0,2})?$/.test(value)) {
       setAutoCashout(value);
     }
+  };
+
+  const handleToggleAutoCashout = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUseAutoCashout(e.target.checked);
   };
 
   // Determine if button should be disabled based on game state and countdown
@@ -117,120 +107,47 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
       <div className="p-4 flex-1 flex flex-col">
         <div className="space-y-4 flex-1">
           {/* Balance Display */}
-          <div className="text-right text-sm text-gray-300">
-            Balance: <span className="font-medium text-white">${balance?.toFixed(2)}</span>
-          </div>
+          <BalanceDisplay balance={balance} />
         
           {/* Bet Amount */}
-          <div>
-            <Label htmlFor="betAmount" className="block text-gray-400 mb-1 text-sm font-medium">
-              Bet Amount
-            </Label>
-            <div className="relative">
-              <Input
-                id="betAmount"
-                type="text"
-                className={cn(
-                  "pr-12 bg-[#0a121f] border-gray-800/40",
-                  inputError && !isPlaying ? "border-red-500" : ""
-                )}
-                value={betAmount}
-                onChange={handleBetAmountChange}
-                disabled={isPlaying || isBetPlaced}
-              />
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                USD
-              </div>
-            </div>
-          </div>
+          <BetAmountInput 
+            betAmount={betAmount}
+            onBetAmountChange={handleBetAmountChange}
+            isDisabled={isPlaying || isBetPlaced}
+            hasError={!!inputError}
+            isPlaying={isPlaying}
+          />
           
           {/* Auto Cashout */}
-          <div>
-            <div className="flex justify-between mb-1">
-              <Label htmlFor="autoCashout" className="text-gray-400 text-sm font-medium">
-                Auto Cashout
-              </Label>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="useAutoCashout"
-                  checked={useAutoCashout}
-                  onChange={(e) => setUseAutoCashout(e.target.checked)}
-                  disabled={isPlaying || isBetPlaced}
-                  className="w-3.5 h-3.5 accent-luckpier-gold"
-                />
-                <label htmlFor="useAutoCashout" className="text-gray-400 text-xs ml-1.5">
-                  Enable
-                </label>
-              </div>
-            </div>
-            <div className="relative">
-              <Input
-                type="text"
-                id="autoCashout"
-                className={cn(
-                  "pr-12 bg-[#0a121f] border-gray-800/40",
-                  !useAutoCashout ? "opacity-50" : ""
-                )}
-                value={autoCashout}
-                onChange={handleAutoCashoutChange}
-                disabled={isPlaying || !useAutoCashout || isBetPlaced}
-              />
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                x
-              </div>
-            </div>
-          </div>
+          <AutoCashoutInput 
+            autoCashout={autoCashout}
+            useAutoCashout={useAutoCashout}
+            onAutoCashoutChange={handleAutoCashoutChange}
+            onToggleAutoCashout={handleToggleAutoCashout}
+            isDisabled={isPlaying || isBetPlaced}
+          />
           
-          {/* Input Error Display */}
-          {inputError && !isPlaying && (
-            <div className="text-red-500 text-xs mt-1">
-              {inputError}
-            </div>
-          )}
-          
-          {/* Bet Status Indicator */}
-          {isBetPlaced && !isCrashed && (
-            <div className="flex items-center justify-center py-2 px-3 bg-green-900/20 text-green-400 rounded-md text-sm animate-fade-in">
-              <CheckCircle className="w-4 h-4 mr-2" />
-              <span>Bet Placed! Good luck!</span>
-            </div>
-          )}
+          {/* Error and Status Messages */}
+          <StatusMessage 
+            inputError={inputError}
+            isPlaying={isPlaying}
+            isBetPlaced={isBetPlaced}
+            isCrashed={isCrashed}
+          />
 
           {/* Spacer */}
           <div className="flex-grow"></div>
           
           {/* Action Buttons */}
           <div className="pt-2">
-            {!isPlaying ? (
-              <button 
-                className={cn(
-                  "w-full py-3 text-base font-medium rounded-md transition-all",
-                  isButtonDisabled() ? 
-                    "bg-blue-600/50 text-white/70 cursor-not-allowed" : 
-                    "bg-blue-600 hover:bg-blue-700 text-white"
-                )}
-                onClick={handlePlaceBet}
-                disabled={isButtonDisabled()}
-              >
-                {remainingTime !== null && remainingTime > 0
-                  ? `Place Bet (${formatTime(remainingTime)}s)`
-                  : "Place Bet"}
-              </button>
-            ) : (
-              <button 
-                className={cn(
-                  "w-full py-3 text-base font-medium rounded-md transition-all",
-                  hasWon || isCrashed ? 
-                    "bg-amber-600/50 text-white/70 cursor-not-allowed" : 
-                    "bg-amber-500 hover:bg-amber-600 text-white animate-pulse"
-                )}
-                onClick={onCashout}
-                disabled={hasWon || isCrashed}
-              >
-                Cash Out
-              </button>
-            )}
+            <GameActionButton 
+              isPlaying={isPlaying}
+              isDisabled={isButtonDisabled()}
+              remainingTime={remainingTime}
+              hasWon={hasWon}
+              isCrashed={isCrashed}
+              onClick={isPlaying ? onCashout : handlePlaceBet}
+            />
           </div>
         </div>
       </div>
