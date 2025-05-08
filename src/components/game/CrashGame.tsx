@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useCrashGame, GAME_STATE } from '@/hooks/useCrashGame';
-import Multiplier from '@/components/game/multiplier/MultiplierLogic';
+import Multiplier from '@/components/game/Multiplier';
 import BettingPanel from '@/components/game/BettingPanel';
 import GameHistory from '@/components/game/GameHistory';
 import LeaderBoard from '@/components/game/LeaderBoard';

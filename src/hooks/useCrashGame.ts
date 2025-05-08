@@ -1,189 +1,63 @@
 
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { toast } from 'sonner';
+import { useEffect } from 'react';
+import { GAME_STATE } from './game/types';
+import { useGameState } from './game/useGameState';
+import { usePlayerActions } from './game/usePlayerActions';
+import { useGameHistory } from './game/useGameHistory';
 
-// Types
-export interface HistoryItem {
-  id: string;
-  multiplier: number;
-}
-
-export interface Player {
-  id: string;
-  name: string;
-  amount: number;
-  multiplier: number | null;
-}
-
-// Game states
-export const GAME_STATE = {
-  WAITING: 'waiting',
-  COUNTDOWN: 'countdown',
-  PLAYING: 'playing',
-  CRASHED: 'crashed',
-};
-
-// Function to calculate crash point (as specified in the requirements)
-export const getCrashMultiplier = (): number => {
-  if (Math.floor(Math.random() * 33) === 0) return 1.00;
-  const r = Math.random();
-  const multiplier = Math.max(1.00, Math.round(1.0 / (1.0 - r) * 100) / 100);
-  return Math.min(multiplier, 1000.0);
-};
-
-// Generate random names
-const randomNames = [
-  'CryptoKing', 'LuckyJack', 'MoonRunner', 'DiamondHands', 'RocketMan',
-  'BitQueen', 'WhaleTrade', 'SatoshiFan', 'BlockChaser', 'CoinFlip',
-  'TokenMaster', 'HashRacer', 'CryptoCraze', 'BullMarket', 'ChainGang'
-];
-
-const getRandomName = (): string => {
-  return randomNames[Math.floor(Math.random() * randomNames.length)];
-};
-
-// Generate random players
-const generateRandomPlayers = (count: number): Player[] => {
-  return Array.from({ length: count }, (_, i) => ({
-    id: `player-${i}`,
-    name: getRandomName(),
-    amount: Math.floor(Math.random() * 10000) / 100 + 10,
-    multiplier: null,
-  }));
-};
+export { GAME_STATE } from './game/types';
+export type { HistoryItem, Player } from './game/types';
 
 export const useCrashGame = (initialBalance: number = 1000) => {
-  // User state
-  const [userBalance, setUserBalance] = useState<number>(initialBalance);
-  
-  // Game state
-  const [gameState, setGameState] = useState<string>(GAME_STATE.WAITING);
-  const [countdownTimer, setCountdownTimer] = useState<number | null>(3);
-  const [crashPoint, setCrashPoint] = useState<number | null>(null);
-  const [currentMultiplier, setCurrentMultiplier] = useState<number>(1);
-  const [playerBet, setPlayerBet] = useState<number | null>(null);
-  const [playerAutoCashout, setPlayerAutoCashout] = useState<number | null>(null);
-  const [playerWin, setPlayerWin] = useState<number | null>(null);
-  const [isBetPlaced, setIsBetPlaced] = useState<boolean>(false);
-  
-  // History and players
-  const [gameHistory, setGameHistory] = useState<HistoryItem[]>([
-    { id: 'game-1', multiplier: 1.27 },
-    { id: 'game-2', multiplier: 2.48 },
-    { id: 'game-3', multiplier: 7.32 },
-    { id: 'game-4', multiplier: 1.07 },
-    { id: 'game-5', multiplier: 1.20 },
-    { id: 'game-6', multiplier: 1.54 },
-  ]);
-  const [players, setPlayers] = useState<Player[]>(generateRandomPlayers(10));
+  // Get game state logic
+  const {
+    gameState,
+    countdownTimer,
+    crashPoint,
+    currentMultiplier,
+    gameStateRef,
+    setGameState,
+    setCountdownTimer,
+    setCrashPoint,
+    setCurrentMultiplier,
+    startCountdown,
+    handleCrash: handleCrashState
+  } = useGameState();
 
-  // Use refs to preserve values between renders for timers
-  const gameStateRef = useRef(gameState);
-  gameStateRef.current = gameState;
-  
-  // Start the game countdown
-  const startCountdown = useCallback(() => {
-    setGameState(GAME_STATE.COUNTDOWN);
-    setCountdownTimer(3);
-    
-    // Generate crash point at the start of countdown
-    const newCrashPoint = getCrashMultiplier();
-    setCrashPoint(newCrashPoint);
-    console.log(`Generated crash point: ${newCrashPoint}x`);
-  }, []);
+  // Get game history logic
+  const {
+    gameHistory,
+    players,
+    setPlayers,
+    updateGameHistory,
+    resetPlayers
+  } = useGameHistory();
 
-  // Handle game crash
-  const handleCrash = useCallback((value: number) => {
-    setGameState(GAME_STATE.CRASHED);
-    
-    // Update game history
-    setGameHistory(prev => {
-      const newHistory = [
-        { id: `game-${Date.now()}`, multiplier: value },
-        ...prev.slice(0, 19) // Keep only the 20 most recent games
-      ];
-      return newHistory;
-    });
-    
-    // Update players
-    setPlayers(prev => 
-      prev.map(player => {
-        if (player.multiplier === null) {
-          return { ...player, multiplier: 0 }; // Lost
-        }
-        return player;
-      })
-    );
-    
-    // Start cooldown for next round
-    setCountdownTimer(3);
-  }, []);
+  // Get player actions
+  const {
+    userBalance,
+    playerBet,
+    playerAutoCashout,
+    playerWin,
+    isBetPlaced,
+    handlePlaceBet,
+    handleCashout,
+    setPlayerBet,
+    setPlayerAutoCashout,
+    setPlayerWin,
+    setIsBetPlaced
+  } = usePlayerActions({
+    gameState,
+    currentMultiplier,
+    setPlayers,
+    startCountdown
+  });
 
-  // Handle bet placement
-  const handlePlaceBet = useCallback((amount: number, autoCashout: number | null) => {
-    // Only allow placing bets if not already in a round
-    if (gameState === GAME_STATE.PLAYING) {
-      toast.error("Round already in progress. Wait for the next round.", { position: 'top-center' });
-      return;
-    }
-    
-    if (isBetPlaced) {
-      toast.error("You already have a bet placed for this round.", { position: 'top-center' });
-      return;
-    }
-    
-    // Deduct bet amount from balance
-    setUserBalance(prev => prev - amount);
-    
-    setPlayerBet(amount);
-    setPlayerAutoCashout(autoCashout);
-    setPlayerWin(null);
-    setIsBetPlaced(true);
-    
-    toast.success("Bet placed successfully!", { position: 'top-center' });
-    
-    // Add player to the game
-    setPlayers(prev => [
-      { id: 'player-user', name: 'You', amount, multiplier: null },
-      ...prev.filter(p => p.id !== 'player-user')
-    ]);
-    
-    // If no game is in progress, start one
-    if (gameState === GAME_STATE.WAITING) {
-      startCountdown();
-    }
-  }, [gameState, startCountdown, isBetPlaced]);
-
-  // Handle cashout
-  const handleCashout = useCallback(() => {
-    if (gameState === GAME_STATE.PLAYING && playerBet !== null) {
-      // Update player status
-      setPlayers(prev => 
-        prev.map(player => {
-          if (player.id === 'player-user') {
-            return { ...player, multiplier: currentMultiplier };
-          }
-          return player;
-        })
-      );
-      
-      // Calculate winnings
-      const winnings = playerBet * currentMultiplier;
-      const profit = winnings - playerBet;
-      
-      // Update balance
-      setUserBalance(prev => prev + winnings);
-      
-      // Set player win
-      setPlayerWin(currentMultiplier);
-      
-      // Show win notification
-      toast.success(
-        `You won $${profit.toFixed(2)}!`, 
-        { position: 'top-center' }
-      );
-    }
-  }, [gameState, playerBet, currentMultiplier]);
+  // Handle crash with history update
+  const handleCrash = (value: number) => {
+    handleCrashState(value);
+    updateGameHistory(value);
+  };
 
   // Countdown timer logic
   useEffect(() => {
@@ -209,7 +83,7 @@ export const useCrashGame = (initialBalance: number = 1000) => {
             setPlayerAutoCashout(null);
             setPlayerWin(null);
             setIsBetPlaced(false); // Reset bet placement status
-            setPlayers(generateRandomPlayers(Math.floor(Math.random() * 8) + 5));
+            resetPlayers();
             return null;
           }
           
@@ -219,7 +93,8 @@ export const useCrashGame = (initialBalance: number = 1000) => {
       
       return () => clearTimeout(timer);
     }
-  }, [countdownTimer]);
+  }, [countdownTimer, gameStateRef, setGameState, setCountdownTimer, setCrashPoint, 
+      setCurrentMultiplier, setPlayerBet, setPlayerAutoCashout, setPlayerWin, setIsBetPlaced, resetPlayers]);
 
   // Auto cashout logic
   useEffect(() => {
@@ -256,7 +131,7 @@ export const useCrashGame = (initialBalance: number = 1000) => {
         }
       });
     }
-  }, [gameState, players]);
+  }, [gameState, players, gameStateRef, setPlayers]);
 
   return {
     userBalance,
