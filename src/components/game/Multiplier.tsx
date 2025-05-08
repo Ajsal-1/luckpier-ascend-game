@@ -10,6 +10,9 @@ interface MultiplierProps {
   winValue: number | null;
   crashValue: number | null;
   onCrash: (value: number) => void;
+  currentMultiplier: number;
+  onMultiplierUpdate: (multiplier: number) => void;
+  gameState: string;
 }
 
 const Multiplier: React.FC<MultiplierProps> = ({
@@ -18,8 +21,10 @@ const Multiplier: React.FC<MultiplierProps> = ({
   winValue,
   crashValue,
   onCrash,
+  currentMultiplier,
+  onMultiplierUpdate,
+  gameState,
 }) => {
-  const [multiplier, setMultiplier] = useState(1);
   const [displayValue, setDisplayValue] = useState("1.00x");
   const [chartData, setChartData] = useState<{x: number, y: number}[]>([]);
   const [crashEffectActive, setCrashEffectActive] = useState(false);
@@ -39,6 +44,9 @@ const Multiplier: React.FC<MultiplierProps> = ({
     }
 
     const elapsed = timestamp - startTimeRef.current;
+    
+    // Calculate new multiplier using exponential growth function
+    // The longer the time, the faster it grows
     const newMultiplier = 1 + Math.pow(elapsed * growthFactor / 1000, 1.5);
     
     // Update chart data with new point
@@ -52,15 +60,16 @@ const Multiplier: React.FC<MultiplierProps> = ({
       return newData;
     });
     
-    // Simulating random crash
-    // In a real implementation, this would be determined by server
+    // Check if we've reached the crash point
     if (crashValue && newMultiplier >= crashValue) {
       setCrashEffectActive(true);
       onCrash(newMultiplier);
+      onMultiplierUpdate(newMultiplier);
       return;
     }
     
-    setMultiplier(newMultiplier);
+    // Update the multiplier display
+    onMultiplierUpdate(newMultiplier);
     setDisplayValue(formatMultiplier(newMultiplier));
     
     animationRef.current = requestAnimationFrame(animateMultiplier);
@@ -73,21 +82,19 @@ const Multiplier: React.FC<MultiplierProps> = ({
       animationRef.current = requestAnimationFrame(animateMultiplier);
       setCrashEffectActive(false); // Reset crash effect
     } else if (isCrashed && crashValue) {
-      setMultiplier(crashValue);
-      setDisplayValue(formatMultiplier(crashValue));
+      // Display the exact crash value
+      setDisplayValue(formatMultiplier(currentMultiplier));
       setCrashEffectActive(true); // Activate crash effect
       
       // Reset crash effect after animation completes
       const resetTimer = setTimeout(() => {
         setCrashEffectActive(false);
-      }, 3000);
+      }, 2000); // 2 seconds of crash effect
       
       return () => clearTimeout(resetTimer);
     } else if (winValue) {
-      setMultiplier(winValue);
       setDisplayValue(formatMultiplier(winValue));
     } else {
-      setMultiplier(1);
       setDisplayValue("1.00x");
       setChartData([]); // Clear chart when not playing
       setCrashEffectActive(false); // Reset crash effect
@@ -98,7 +105,7 @@ const Multiplier: React.FC<MultiplierProps> = ({
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [isPlaying, isCrashed, winValue, crashValue]);
+  }, [isPlaying, isCrashed, winValue, crashValue, currentMultiplier, onMultiplierUpdate]);
 
   return (
     <div 
@@ -216,6 +223,28 @@ const Multiplier: React.FC<MultiplierProps> = ({
         )}
       </AnimatePresence>
 
+      {/* Countdown Display */}
+      <AnimatePresence>
+        {gameState === 'countdown' && (
+          <motion.div
+            className="absolute inset-0 flex items-center justify-center bg-black/30 z-20"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="text-6xl md:text-8xl font-bold text-amber-400"
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 1.2, opacity: 0 }}
+              key={displayValue} // Force re-animation on value change
+            >
+              {Math.ceil(parseFloat(displayValue))}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Floating multiplier label that tracks the tip of the line */}
       <motion.div
         className={cn(
@@ -226,7 +255,7 @@ const Multiplier: React.FC<MultiplierProps> = ({
           right: 20,
           top: isCrashed || winValue 
             ? '50%' 
-            : `${Math.max(20, Math.min(80, 100 - (multiplier - 1) * 10))}%`,
+            : `${Math.max(20, Math.min(80, 100 - (currentMultiplier - 1) * 10))}%`,
           transform: 'translate(0, -50%)',
         }}
         animate={{
@@ -256,8 +285,8 @@ const Multiplier: React.FC<MultiplierProps> = ({
         className={cn(
           "text-7xl sm:text-8xl font-bold z-10",
           isPlaying && !isCrashed && !winValue ? "text-white" : "",
-          isCrashed ? "multiplier-crashed" : "",
-          winValue ? "multiplier-win" : "",
+          isCrashed ? "text-red-500" : "",
+          winValue ? "text-amber-400" : "",
         )}
         animate={{ 
           scale: (isCrashed && crashEffectActive) ? [1, 1.2, 0.9, 1.05, 1] : (winValue) ? [1, 1.05, 1] : 1,
@@ -276,7 +305,7 @@ const Multiplier: React.FC<MultiplierProps> = ({
       {/* Status messages */}
       {isCrashed && (
         <motion.div 
-          className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 text-pink-500 text-xl font-bold tracking-wider"
+          className="absolute bottom-4 md:bottom-6 left-1/2 transform -translate-x-1/2 text-red-500 text-xl md:text-2xl font-bold tracking-wider"
           initial={{ opacity: 0, y: 10 }}
           animate={crashEffectActive ? { 
             opacity: 1, 
@@ -298,7 +327,7 @@ const Multiplier: React.FC<MultiplierProps> = ({
       
       {winValue && (
         <motion.div 
-          className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 text-luckpier-gold text-xl font-bold tracking-wider"
+          className="absolute bottom-4 md:bottom-6 left-1/2 transform -translate-x-1/2 text-amber-400 text-xl md:text-2xl font-bold tracking-wider"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.2 }}

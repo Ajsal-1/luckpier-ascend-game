@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Multiplier from '@/components/game/Multiplier';
 import BettingPanel from '@/components/game/BettingPanel';
 import GameHistory from '@/components/game/GameHistory';
@@ -22,6 +22,7 @@ interface Player {
 // Game states
 const GAME_STATE = {
   WAITING: 'waiting',
+  COUNTDOWN: 'countdown',
   PLAYING: 'playing',
   CRASHED: 'crashed',
 };
@@ -47,12 +48,24 @@ const generateRandomPlayers = (count: number): Player[] => {
   }));
 };
 
+// Function to calculate crash point (as specified in the requirements)
+const getCrashMultiplier = (): number => {
+  if (Math.floor(Math.random() * 33) === 0) return 1.00;
+  const r = Math.random();
+  const multiplier = Math.max(1.00, Math.round(1.0 / (1.0 - r) * 100) / 100);
+  return Math.min(multiplier, 1000.0);
+};
+
 // Home page (Crash Game)
 const Index = () => {
+  // User state
+  const [userBalance, setUserBalance] = useState<number>(1000);
+  
   // Game state
   const [gameState, setGameState] = useState<string>(GAME_STATE.WAITING);
   const [countdownTimer, setCountdownTimer] = useState<number | null>(3);
-  const [crashValue, setCrashValue] = useState<number | null>(null);
+  const [crashPoint, setCrashPoint] = useState<number | null>(null);
+  const [currentMultiplier, setCurrentMultiplier] = useState<number>(1);
   const [playerBet, setPlayerBet] = useState<number | null>(null);
   const [playerAutoCashout, setPlayerAutoCashout] = useState<number | null>(null);
   const [playerWin, setPlayerWin] = useState<number | null>(null);
@@ -68,23 +81,30 @@ const Index = () => {
   ]);
   const [players, setPlayers] = useState<Player[]>(generateRandomPlayers(10));
 
-  // Generate a random crash point between 1.1 and 10
-  const generateCrashPoint = useCallback((): number => {
-    // This is a simplified version. Real crash games use complex algorithms
-    // that ensure the house always has an edge in the long run
-    return 1.1 + Math.random() * 8.9;
+  // Use refs to preserve values between renders for timers
+  const gameStateRef = useRef(gameState);
+  gameStateRef.current = gameState;
+  
+  // Start the game countdown
+  const startCountdown = useCallback(() => {
+    setGameState(GAME_STATE.COUNTDOWN);
+    setCountdownTimer(3);
+    
+    // Generate crash point at the start of countdown
+    const newCrashPoint = getCrashMultiplier();
+    setCrashPoint(newCrashPoint);
+    console.log(`Generated crash point: ${newCrashPoint}x`);
   }, []);
 
   // Handle game crash
   const handleCrash = useCallback((value: number) => {
     setGameState(GAME_STATE.CRASHED);
-    setCrashValue(value);
     
     // Update game history
     setGameHistory(prev => {
       const newHistory = [
         { id: `game-${Date.now()}`, multiplier: value },
-        ...prev.slice(0, 9)
+        ...prev.slice(0, 19) // Keep only the 20 most recent games
       ];
       return newHistory;
     });
@@ -99,12 +119,15 @@ const Index = () => {
       })
     );
     
-    // Start countdown for next round
-    setCountdownTimer(5);
+    // Start cooldown for next round
+    setCountdownTimer(3);
   }, []);
 
   // Handle bet placement
   const handlePlaceBet = useCallback((amount: number, autoCashout: number | null) => {
+    // Deduct bet amount from balance
+    setUserBalance(prev => prev - amount);
+    
     setPlayerBet(amount);
     setPlayerAutoCashout(autoCashout);
     setPlayerWin(null);
@@ -115,24 +138,15 @@ const Index = () => {
       ...prev.filter(p => p.id !== 'player-user')
     ]);
     
-    // Simulate other players joining
-    const randomOtherPlayers = generateRandomPlayers(Math.floor(Math.random() * 5) + 2);
-    setPlayers(prev => [
-      ...prev.filter(p => p.id === 'player-user'),
-      ...randomOtherPlayers
-    ]);
-    
-    // Start the game
-    setGameState(GAME_STATE.PLAYING);
-    setCrashValue(generateCrashPoint());
-  }, [generateCrashPoint]);
+    // If no game is in progress, start one
+    if (gameState === GAME_STATE.WAITING) {
+      startCountdown();
+    }
+  }, [gameState, startCountdown]);
 
   // Handle cashout
   const handleCashout = useCallback(() => {
-    if (gameState === GAME_STATE.PLAYING && playerBet) {
-      // Calculate current multiplier (this would normally come from the server)
-      const currentMultiplier = crashValue ? crashValue * 0.8 : 2; // Simplified for demo
-      
+    if (gameState === GAME_STATE.PLAYING && playerBet !== null) {
       // Update player status
       setPlayers(prev => 
         prev.map(player => {
@@ -143,67 +157,81 @@ const Index = () => {
         })
       );
       
+      // Calculate winnings
+      const winnings = playerBet * currentMultiplier;
+      const profit = winnings - playerBet;
+      
+      // Update balance
+      setUserBalance(prev => prev + winnings);
+      
       // Set player win
       setPlayerWin(currentMultiplier);
       
       // Show win notification
       toast.success(
-        `You won $${(playerBet * currentMultiplier - playerBet).toFixed(2)}!`, 
+        `You won $${profit.toFixed(2)}!`, 
         { position: 'top-center' }
       );
     }
-  }, [gameState, playerBet, crashValue]);
-
-  // Auto cashout logic
-  useEffect(() => {
-    if (gameState === GAME_STATE.PLAYING && playerAutoCashout !== null) {
-      const checkInterval = setInterval(() => {
-        const currentMultiplier = crashValue ? crashValue * Math.random() * 0.8 : 1.5; // Simplified
-        
-        if (currentMultiplier >= playerAutoCashout) {
-          handleCashout();
-          clearInterval(checkInterval);
-        }
-      }, 100);
-      
-      return () => clearInterval(checkInterval);
-    }
-  }, [gameState, playerAutoCashout, handleCashout, crashValue]);
+  }, [gameState, playerBet, currentMultiplier]);
 
   // Countdown timer logic
   useEffect(() => {
     if (countdownTimer !== null && countdownTimer > 0) {
       const timer = setTimeout(() => {
-        setCountdownTimer(prev => prev !== null ? prev - 0.1 : null);
+        setCountdownTimer(prev => {
+          if (prev === null) return null;
+          const newValue = prev - 0.1;
+          
+          // When countdown reaches zero, start the game
+          if (newValue <= 0 && gameStateRef.current === GAME_STATE.COUNTDOWN) {
+            setGameState(GAME_STATE.PLAYING);
+            setCurrentMultiplier(1);
+            return null;
+          }
+          
+          // When cooldown after crash reaches zero, reset for new round
+          if (newValue <= 0 && gameStateRef.current === GAME_STATE.CRASHED) {
+            setGameState(GAME_STATE.WAITING);
+            setCrashPoint(null);
+            setCurrentMultiplier(1);
+            setPlayerBet(null);
+            setPlayerAutoCashout(null);
+            setPlayerWin(null);
+            setPlayers(generateRandomPlayers(Math.floor(Math.random() * 8) + 5));
+            return null;
+          }
+          
+          return newValue;
+        });
       }, 100);
       
       return () => clearTimeout(timer);
-    } else if (countdownTimer !== null && countdownTimer <= 0) {
-      // Reset game state
-      setCountdownTimer(null);
-      setGameState(GAME_STATE.WAITING);
-      setCrashValue(null);
-      setPlayerBet(null);
-      setPlayerAutoCashout(null);
-      setPlayerWin(null);
-      
-      // Reset players
-      setPlayers(generateRandomPlayers(Math.floor(Math.random() * 8) + 5));
     }
   }, [countdownTimer]);
 
-  // Random players auto-cashout
+  // Auto cashout logic
+  useEffect(() => {
+    if (gameState === GAME_STATE.PLAYING && 
+        playerAutoCashout !== null && 
+        currentMultiplier >= playerAutoCashout && 
+        playerWin === null) {
+      handleCashout();
+    }
+  }, [gameState, playerAutoCashout, currentMultiplier, playerWin, handleCashout]);
+
+  // Simulate other players behavior
   useEffect(() => {
     if (gameState === GAME_STATE.PLAYING) {
       // Simulate other players cashing out at random times
       players.forEach(player => {
         if (player.id !== 'player-user' && player.multiplier === null) {
           const randomTime = Math.random() * 5000 + 1000; // 1-6 seconds
-          const randomMultiplier = 1 + Math.random() * 5; // 1-6x
+          const randomMultiplier = 1.1 + Math.random() * 5; // 1.1-6.1x
           
           setTimeout(() => {
             // Only cash out if game is still in progress
-            if (gameState === GAME_STATE.PLAYING) {
+            if (gameStateRef.current === GAME_STATE.PLAYING) {
               setPlayers(prev => 
                 prev.map(p => {
                   if (p.id === player.id) {
@@ -237,6 +265,7 @@ const Index = () => {
             onPlaceBet={handlePlaceBet}
             onCashout={handleCashout}
             remainingTime={countdownTimer}
+            balance={userBalance}
           />
         </div>
         
@@ -246,8 +275,11 @@ const Index = () => {
             isPlaying={gameState === GAME_STATE.PLAYING}
             isCrashed={gameState === GAME_STATE.CRASHED}
             winValue={playerWin}
-            crashValue={crashValue}
+            crashValue={crashPoint}
             onCrash={handleCrash}
+            currentMultiplier={currentMultiplier}
+            onMultiplierUpdate={setCurrentMultiplier}
+            gameState={gameState}
           />
         </div>
         
