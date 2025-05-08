@@ -5,6 +5,7 @@ import Multiplier from '@/components/game/Multiplier';
 import BettingPanel from '@/components/game/BettingPanel';
 import GameHistory from '@/components/game/GameHistory';
 import LeaderBoard from '@/components/game/LeaderBoard';
+import HelpModal from '@/components/game/HelpModal';
 
 const CrashGame: React.FC = () => {
   const {
@@ -47,7 +48,10 @@ const CrashGame: React.FC = () => {
         </div>
         
         {/* Multiplier Chart (Center) */}
-        <div className="lg:col-span-6 order-1 lg:order-2 bg-[#131c29] rounded-md flex items-center justify-center min-h-[240px] md:min-h-[320px] p-4">
+        <div className="lg:col-span-6 order-1 lg:order-2 bg-[#131c29] rounded-md flex items-center justify-center min-h-[240px] md:min-h-[320px] p-4 relative">
+          {/* Help Modal Button */}
+          <HelpModal />
+          
           <Multiplier 
             isPlaying={gameState === GAME_STATE.PLAYING}
             isCrashed={gameState === GAME_STATE.CRASHED}
