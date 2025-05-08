@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Input } from "@/components/ui/input";
@@ -62,7 +61,8 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
   };
 
   const formatTime = (seconds: number): string => {
-    return seconds.toFixed(1);
+    // Ensure timer doesn't show negative values
+    return Math.max(0, seconds).toFixed(1);
   };
   
   const handleBetAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -79,6 +79,18 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
     if (value === "" || /^\d+(\.\d{0,2})?$/.test(value)) {
       setAutoCashout(value);
     }
+  };
+
+  // Determine if button should be disabled based on game state and countdown
+  const isButtonDisabled = () => {
+    // If there's an input error, always disable
+    if (inputError) return true;
+    
+    // If countdown is active but not showing a negative value
+    if (remainingTime !== null && remainingTime > 0) return true;
+    
+    // Otherwise enable
+    return false;
   };
 
   return (
@@ -177,14 +189,14 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
               <button 
                 className={cn(
                   "w-full py-3 text-base font-medium rounded-md transition-all",
-                  inputError || (isCrashed === false && remainingTime !== null) ? 
+                  isButtonDisabled() ? 
                     "bg-blue-600/50 text-white/70 cursor-not-allowed" : 
                     "bg-blue-600 hover:bg-blue-700 text-white"
                 )}
                 onClick={handlePlaceBet}
-                disabled={!!inputError || (isCrashed === false && remainingTime !== null)}
+                disabled={isButtonDisabled()}
               >
-                {isCrashed === false && remainingTime !== null
+                {remainingTime !== null && remainingTime > 0
                   ? `Place Bet (${formatTime(remainingTime)}s)`
                   : "Place Bet"}
               </button>

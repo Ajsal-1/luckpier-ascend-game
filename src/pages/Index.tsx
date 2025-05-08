@@ -202,7 +202,7 @@ const Index = () => {
             return null;
           }
           
-          return newValue;
+          return Math.max(0, newValue); // Prevent negative values
         });
       }, 100);
       
