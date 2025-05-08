@@ -241,7 +241,7 @@ const Index = () => {
         </div>
         
         {/* Multiplier Chart (Center) */}
-        <div className="lg:col-span-6 order-1 lg:order-2 bg-[#131c29] border border-gray-800/40 rounded-md flex items-center justify-center min-h-[240px] md:min-h-[320px] p-4">
+        <div className="lg:col-span-6 order-1 lg:order-2 bg-[#131c29] rounded-md flex items-center justify-center min-h-[240px] md:min-h-[320px] p-4">
           <Multiplier 
             isPlaying={gameState === GAME_STATE.PLAYING}
             isCrashed={gameState === GAME_STATE.CRASHED}

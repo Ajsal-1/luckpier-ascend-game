@@ -90,7 +90,7 @@ const Multiplier: React.FC<MultiplierProps> = ({
   return (
     <div 
       className={cn(
-        "relative flex items-center justify-center w-full h-full min-h-[240px] md:min-h-[320px] bg-[#000000e6]",
+        "relative flex items-center justify-center w-full h-full min-h-[240px] md:min-h-[320px]",
         (isCrashed || winValue) ? "animate-pulse-win" : ""
       )}
     >
@@ -198,6 +198,7 @@ const Multiplier: React.FC<MultiplierProps> = ({
         {displayValue}
       </motion.div>
       
+      {/* Status messages */}
       {isCrashed && (
         <motion.div 
           className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 text-pink-500 text-xl font-bold tracking-wider"
