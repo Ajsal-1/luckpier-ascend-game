@@ -69,6 +69,7 @@ const Index = () => {
   const [playerBet, setPlayerBet] = useState<number | null>(null);
   const [playerAutoCashout, setPlayerAutoCashout] = useState<number | null>(null);
   const [playerWin, setPlayerWin] = useState<number | null>(null);
+  const [isBetPlaced, setIsBetPlaced] = useState<boolean>(false);
   
   // History and players
   const [gameHistory, setGameHistory] = useState<HistoryItem[]>([
@@ -125,12 +126,26 @@ const Index = () => {
 
   // Handle bet placement
   const handlePlaceBet = useCallback((amount: number, autoCashout: number | null) => {
+    // Only allow placing bets if not already in a round
+    if (gameState === GAME_STATE.PLAYING) {
+      toast.error("Round already in progress. Wait for the next round.", { position: 'top-center' });
+      return;
+    }
+    
+    if (isBetPlaced) {
+      toast.error("You already have a bet placed for this round.", { position: 'top-center' });
+      return;
+    }
+    
     // Deduct bet amount from balance
     setUserBalance(prev => prev - amount);
     
     setPlayerBet(amount);
     setPlayerAutoCashout(autoCashout);
     setPlayerWin(null);
+    setIsBetPlaced(true);
+    
+    toast.success("Bet placed successfully!", { position: 'top-center' });
     
     // Add player to the game
     setPlayers(prev => [
@@ -142,7 +157,7 @@ const Index = () => {
     if (gameState === GAME_STATE.WAITING) {
       startCountdown();
     }
-  }, [gameState, startCountdown]);
+  }, [gameState, startCountdown, isBetPlaced]);
 
   // Handle cashout
   const handleCashout = useCallback(() => {
@@ -198,6 +213,7 @@ const Index = () => {
             setPlayerBet(null);
             setPlayerAutoCashout(null);
             setPlayerWin(null);
+            setIsBetPlaced(false); // Reset bet placement status
             setPlayers(generateRandomPlayers(Math.floor(Math.random() * 8) + 5));
             return null;
           }
@@ -266,6 +282,7 @@ const Index = () => {
             onCashout={handleCashout}
             remainingTime={countdownTimer}
             balance={userBalance}
+            isBetPlaced={isBetPlaced}
           />
         </div>
         

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CheckCircle } from "lucide-react";
 
 interface BettingPanelProps {
   isPlaying: boolean;
@@ -11,6 +12,7 @@ interface BettingPanelProps {
   onCashout: () => void;
   remainingTime: number | null;
   balance?: number;
+  isBetPlaced?: boolean;
 }
 
 const BettingPanel: React.FC<BettingPanelProps> = ({
@@ -21,6 +23,7 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
   onCashout,
   remainingTime,
   balance = 1000.00,
+  isBetPlaced = false,
 }) => {
   const [betAmount, setBetAmount] = useState("100.00");
   const [autoCashout, setAutoCashout] = useState<string>("2.00");
@@ -83,11 +86,17 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
 
   // Determine if button should be disabled based on game state and countdown
   const isButtonDisabled = () => {
+    // If bet is already placed, disable
+    if (isBetPlaced) return true;
+    
     // If there's an input error, always disable
     if (inputError) return true;
     
     // If countdown is active but not showing a negative value
     if (remainingTime !== null && remainingTime > 0) return true;
+    
+    // If currently playing, disable placing bets
+    if (isPlaying) return true;
     
     // Otherwise enable
     return false;
@@ -127,7 +136,7 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
                 )}
                 value={betAmount}
                 onChange={handleBetAmountChange}
-                disabled={isPlaying}
+                disabled={isPlaying || isBetPlaced}
               />
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
                 USD
@@ -147,7 +156,7 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
                   id="useAutoCashout"
                   checked={useAutoCashout}
                   onChange={(e) => setUseAutoCashout(e.target.checked)}
-                  disabled={isPlaying}
+                  disabled={isPlaying || isBetPlaced}
                   className="w-3.5 h-3.5 accent-luckpier-gold"
                 />
                 <label htmlFor="useAutoCashout" className="text-gray-400 text-xs ml-1.5">
@@ -165,7 +174,7 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
                 )}
                 value={autoCashout}
                 onChange={handleAutoCashoutChange}
-                disabled={isPlaying || !useAutoCashout}
+                disabled={isPlaying || !useAutoCashout || isBetPlaced}
               />
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
                 x
@@ -177,6 +186,14 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
           {inputError && !isPlaying && (
             <div className="text-red-500 text-xs mt-1">
               {inputError}
+            </div>
+          )}
+          
+          {/* Bet Status Indicator */}
+          {isBetPlaced && !isCrashed && (
+            <div className="flex items-center justify-center py-2 px-3 bg-green-900/20 text-green-400 rounded-md text-sm animate-fade-in">
+              <CheckCircle className="w-4 h-4 mr-2" />
+              <span>Bet Placed! Good luck!</span>
             </div>
           )}
 
