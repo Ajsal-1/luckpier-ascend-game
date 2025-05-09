@@ -83,9 +83,7 @@ export default function AuthModal({
                 Login
               </Button>
               <div className="text-center">
-                <Button variant="link" size="sm" type="button" onClick={handleMagicLink} disabled={isLoading || !email} className="bg-slate-50">
-                  Send magic link instead
-                </Button>
+                <Button variant="link" size="sm" type="button" onClick={handleMagicLink} disabled={isLoading || !email} className="text-gray-950 bg-slate-900 hover:bg-slate-800"></Button>
               </div>
             </form>
           </TabsContent>
