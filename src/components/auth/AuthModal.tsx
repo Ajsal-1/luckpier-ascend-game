@@ -78,7 +78,7 @@ export default function AuthModal({
                 <Label htmlFor="password-login">Password</Label>
                 <Input id="password-login" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} disabled={isLoading} required className="border-gray-800/40 bg-slate-50" />
               </div>
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" disabled={isLoading} className="w-full bg-[#ffc600]">
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Login
               </Button>
