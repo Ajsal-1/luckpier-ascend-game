@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { GAME_STATE } from './game/types';
 import { useGameState } from './game/useGameState';
@@ -153,26 +152,41 @@ export const useCrashGame = (initialBalance: number = 1000) => {
   // Start a new round
   const startNewRound = async () => {
     try {
+      console.log("Starting new round...");
       // Get recent crash points to generate next crash
       const { data, error } = await supabase.rpc('get_recent_crash_points');
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching recent crash points:', error);
+        throw error;
+      }
       
       let nextCrashPoint: number;
       
       if (data && data.length > 0 && data[0].crash_values) {
+        console.log("Using server crash points based on historical data");
         // Using Supabase function to get the next crash point
         const recentCrashes = data[0].crash_values;
+        console.log("Recent crashes:", recentCrashes);
+        
         const { data: crashPointData, error: crashPointError } = await supabase.rpc(
           'generate_crash_point', 
           { recent_crashes: recentCrashes }
         );
         
-        if (crashPointError) throw crashPointError;
-        nextCrashPoint = crashPointData || getCrashMultiplierFallback();
+        if (crashPointError) {
+          console.error('Error generating crash point:', crashPointError);
+          throw crashPointError;
+        }
+        
+        // Ensure we have a valid crash point that's at least 1.05
+        nextCrashPoint = crashPointData ? Math.max(1.05, parseFloat(crashPointData)) : getCrashMultiplierFallback();
+        console.log(`Server generated crash point: ${nextCrashPoint.toFixed(2)}x`);
+        
         setIsUsingServerCrashPoints(true);
       } else {
         // Fallback to client-side if no data
+        console.log("No server crash data, using fallback generator");
         nextCrashPoint = getCrashMultiplierFallback();
         setIsUsingServerCrashPoints(false);
       }
@@ -187,16 +201,20 @@ export const useCrashGame = (initialBalance: number = 1000) => {
         .select('id')
         .single();
         
-      if (roundError) throw roundError;
+      if (roundError) {
+        console.error('Error creating new round:', roundError);
+        throw roundError;
+      }
       
       // Store the current round ID
       if (roundData) {
         setCurrentRoundId(roundData.id);
+        console.log(`New round created with ID: ${roundData.id}`);
       }
       
       // Set the crash point locally
       setCrashPoint(nextCrashPoint);
-      console.log(`New round started with crash point: ${nextCrashPoint}`);
+      console.log(`New round started with crash point: ${nextCrashPoint.toFixed(2)}x`);
       
     } catch (err) {
       console.error('Error starting new round:', err);
@@ -204,15 +222,35 @@ export const useCrashGame = (initialBalance: number = 1000) => {
       const fallbackCrashPoint = getCrashMultiplierFallback();
       setCrashPoint(fallbackCrashPoint);
       setIsUsingServerCrashPoints(false);
+      toast.error("Error starting new round, using local crash generator", { position: 'top-center' });
     }
   };
   
-  // Client-side fallback for crash point generation
+  // Client-side fallback for crash point generation with improved variability
   const getCrashMultiplierFallback = () => {
-    // Similar algorithm to server-side, but simplified
+    // Improved algorithm to generate a wider range of crash points
     const houseEdge = 0.01;
-    const r = Math.random();
-    const crash = Math.max(1.0, Math.floor((100 * (1 - houseEdge)) / r) / 100);
+    
+    // Use a better random value that avoids values too close to 0
+    const r = Math.max(0.01, Math.random());
+    
+    let crash: number;
+    
+    // 15% chance of high multiplier (2x to 15x)
+    if (Math.random() < 0.15) {
+      crash = 2 + Math.random() * 13;
+    } 
+    // 5% chance of very high multiplier (15x to 50x)
+    else if (Math.random() < 0.05) {
+      crash = 15 + Math.random() * 35;
+    }
+    // 80% chance of normal multiplier (1x to 3x)
+    else {
+      crash = Math.max(1.05, Math.floor((100 * (1 - houseEdge)) / r) / 100);
+    }
+    
+    console.log(`Generated fallback crash point: ${crash.toFixed(2)}x`);
+    
     return parseFloat(crash.toFixed(2));
   };
 
@@ -307,6 +345,7 @@ export const useCrashGame = (initialBalance: number = 1000) => {
             
             // Update round status to 'in_progress' in database
             if (currentRoundId && isUsingServerCrashPoints) {
+              console.log(`Starting round ${currentRoundId}`);
               supabase
                 .from('rounds')
                 .update({ status: 'in_progress', started_at: new Date().toISOString() })
@@ -332,6 +371,7 @@ export const useCrashGame = (initialBalance: number = 1000) => {
             startCountdown();
             
             // Start a new round in the database
+            console.log("Crash cooldown complete, starting new round");
             startNewRound();
             
             return null;
@@ -350,6 +390,7 @@ export const useCrashGame = (initialBalance: number = 1000) => {
   // Auto-start the first round with server integration
   useEffect(() => {
     if (gameState === GAME_STATE.WAITING) {
+      console.log("Game in WAITING state, starting new round");
       startNewRound();
       startCountdown();
     }

@@ -1,75 +1,155 @@
 
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.6'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 serve(async (req) => {
-  // CORS headers
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  }
-
   // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { delta_amount, user_id } = await req.json()
+    // Create a Supabase client with the auth context of the logged-in user
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: req.headers.get("Authorization")! } } }
+    );
+
+    // Get the JWT token from the request
+    const token = req.headers.get("Authorization")?.replace("Bearer ", "");
     
-    if (!delta_amount || !user_id) {
+    if (!token) {
       return new Response(
-        JSON.stringify({ error: 'Missing required parameters' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      )
+        JSON.stringify({ error: "No authorization token provided" }),
+        { 
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
 
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    // Extract the request body
+    const { delta_amount, user_id } = await req.json();
+    
+    if (typeof delta_amount !== 'number') {
+      return new Response(
+        JSON.stringify({ error: "delta_amount must be a number" }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+
+    // Get the user from the JWT to verify they're updating their own balance
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    
+    if (userError || !user) {
+      console.error("Auth error:", userError);
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { 
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+
+    // Check if the authenticated user matches the user_id param
+    if (user.id !== user_id) {
+      return new Response(
+        JSON.stringify({ error: "Cannot update another user's balance" }),
+        { 
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+
+    console.log(`Updating balance for user ${user_id} by ${delta_amount}`);
 
     // Get current balance
     const { data: profileData, error: profileError } = await supabaseClient
       .from('profiles')
       .select('balance')
       .eq('id', user_id)
-      .single()
+      .single();
 
     if (profileError) {
-      throw new Error(`Error fetching profile: ${profileError.message}`)
+      console.error("Error fetching profile:", profileError);
+      return new Response(
+        JSON.stringify({ error: "Error fetching user profile" }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
 
-    const currentBalance = profileData?.balance || 0
-    const newBalance = currentBalance + delta_amount
+    const currentBalance = profileData.balance || 0;
+    const newBalance = currentBalance + delta_amount;
 
-    // Update balance
+    // Update the user's balance
     const { error: updateError } = await supabaseClient
       .from('profiles')
-      .update({ balance: newBalance, updated_at: new Date().toISOString() })
-      .eq('id', user_id)
+      .update({ 
+        balance: newBalance,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', user_id);
 
     if (updateError) {
-      throw new Error(`Error updating balance: ${updateError.message}`)
+      console.error("Error updating balance:", updateError);
+      return new Response(
+        JSON.stringify({ error: "Failed to update balance" }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
 
-    // Record transaction
-    await supabaseClient
+    // Record the transaction
+    const { error: transactionError } = await supabaseClient
       .from('transactions')
       .insert({
         user_id,
         amount: delta_amount,
-        type: delta_amount > 0 ? 'game_win' : 'game_bet',
-      })
+        type: delta_amount > 0 ? 'win' : 'bet',
+        status: 'completed'
+      });
+
+    if (transactionError) {
+      console.error("Error recording transaction:", transactionError);
+      // Don't fail the whole operation if just the transaction recording fails
+    }
 
     return new Response(
-      JSON.stringify({ success: true, new_balance: newBalance }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+      JSON.stringify({ 
+        success: true, 
+        new_balance: newBalance,
+        message: `Balance updated successfully to ${newBalance}`
+      }),
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      }
+    );
+
   } catch (error) {
+    console.error("Unexpected error:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-    )
+      JSON.stringify({ error: "Internal server error" }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      }
+    );
   }
-})
+});

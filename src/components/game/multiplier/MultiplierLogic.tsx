@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { formatMultiplier } from './utils';
 import { ChartDataPoint } from './types';
@@ -34,9 +33,8 @@ const MultiplierLogic: React.FC<MultiplierLogicProps> = ({
   const animationRef = useRef<number | null>(null);
   const startTimeRef = useRef<number | null>(null);
   
-  // Constants to control the multiplier growth curve
-  // Using similar formula to stake.com's exponential growth
-  const growthFactor = 0.075; // Controls exponential growth rate
+  // Increased growth factor from 0.075 to 0.15 for faster rise
+  const growthFactor = 0.15; // Doubled from original 0.075 to make multiplier rise faster
 
   const animateMultiplier = (timestamp: number) => {
     if (!startTimeRef.current) {
