@@ -56,10 +56,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       setWallet(prev => ({ ...prev, loading: true }));
       
-      // Use a generic query approach to avoid type errors
-      // This works around the TypeScript limitations until the types are updated
-      const { data, error } = await supabase
-        .from('wallets')
+      // Use a type assertion to work around the TypeScript error
+      // This is a temporary solution until the types are updated
+      const { data, error } = await (supabase
+        .from('wallets') as any)
         .select('*')
         .eq('user_id', userId)
         .single();
