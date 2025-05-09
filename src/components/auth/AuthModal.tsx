@@ -98,7 +98,7 @@ export default function AuthModal({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password-signup">Password</Label>
-                <Input id="password-signup" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} disabled={isLoading} required minLength={6} className="bg-[#0a121f] border-gray-800/40" />
+                <Input id="password-signup" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} disabled={isLoading} required minLength={6} className="border-gray-800/40 bg-slate-50" />
                 <p className="text-xs text-gray-400">Password must be at least 6 characters</p>
               </div>
               <Button type="submit" className="w-full" disabled={isLoading}>
