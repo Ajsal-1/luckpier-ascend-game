@@ -52,9 +52,10 @@ const processActiveRounds = async (supabase: any) => {
       if (now >= startTime) {
         // Time to start this round
         const { error: updateError } = await supabase
-          .from('crash_rounds')
-          .update({ status: 'running' })
-          .eq('id', waitingRound.id);
+          .rpc('update_round_status', { 
+            round_id: waitingRound.id, 
+            new_status: 'running' 
+          });
           
         if (updateError) {
           console.error('Error updating round status:', updateError);

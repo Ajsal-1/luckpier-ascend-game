@@ -53,6 +53,30 @@ export type Database = {
           },
         ]
       }
+      crash_rounds: {
+        Row: {
+          crash_multiplier: number
+          created_at: string | null
+          id: string
+          start_time: string
+          status: string
+        }
+        Insert: {
+          crash_multiplier: number
+          created_at?: string | null
+          id?: string
+          start_time: string
+          status?: string
+        }
+        Update: {
+          crash_multiplier?: number
+          created_at?: string | null
+          id?: string
+          start_time?: string
+          status?: string
+        }
+        Relationships: []
+      }
       games: {
         Row: {
           crash_point: number
@@ -190,11 +214,54 @@ export type Database = {
         }
         Relationships: []
       }
+      user_bets: {
+        Row: {
+          bet_amount: number
+          cashout_multiplier: number | null
+          created_at: string | null
+          id: string
+          round_id: string
+          user_id: string
+        }
+        Insert: {
+          bet_amount: number
+          cashout_multiplier?: number | null
+          created_at?: string | null
+          id?: string
+          round_id: string
+          user_id: string
+        }
+        Update: {
+          bet_amount?: number
+          cashout_multiplier?: number | null
+          created_at?: string | null
+          id?: string
+          round_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_bets_round_id_fkey"
+            columns: ["round_id"]
+            isOneToOne: false
+            referencedRelation: "crash_rounds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      cash_out_bet: {
+        Args: { p_round_id: string; p_user_id: string; p_multiplier: number }
+        Returns: boolean
+      }
+      create_new_crash_round: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       generate_crash_point: {
         Args: { recent_crashes: number[] }
         Returns: number
@@ -204,6 +271,14 @@ export type Database = {
         Returns: {
           crash_values: number[]
         }[]
+      }
+      place_bet: {
+        Args: { p_round_id: string; p_amount: number }
+        Returns: boolean
+      }
+      update_round_status: {
+        Args: { round_id: string; new_status: string }
+        Returns: boolean
       }
     }
     Enums: {
