@@ -19,6 +19,7 @@ export default function AuthModal({
 }: AuthModalProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'login' | 'signup'>('login');
   
@@ -35,7 +36,7 @@ export default function AuthModal({
       if (activeTab === 'login') {
         await signIn(email, password);
       } else {
-        await signUp(email, password);
+        await signUp(email, password, username);
       }
       onClose();
     } catch (error) {
@@ -81,6 +82,10 @@ export default function AuthModal({
           
           <TabsContent value="signup">
             <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+              <div className="space-y-2">
+                <Label htmlFor="username-signup">Username</Label>
+                <Input id="username-signup" type="text" placeholder="gamer123" value={username} onChange={e => setUsername(e.target.value)} disabled={isLoading} required className="border-gray-800/40 bg-slate-50" />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="email-signup">Email</Label>
                 <Input id="email-signup" type="email" placeholder="name@example.com" value={email} onChange={e => setEmail(e.target.value)} disabled={isLoading} required className="border-gray-800/40 bg-slate-50" />

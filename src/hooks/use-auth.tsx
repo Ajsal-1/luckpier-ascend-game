@@ -10,7 +10,7 @@ type AuthContextType = {
   session: Session | null;
   loading: boolean;
   isAuthenticated: boolean;
-  signUp: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, username?: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithOtp: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -90,7 +90,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   // Sign up with email and password
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, username?: string) => {
     try {
       // Clean up existing state first
       cleanupAuthState();
@@ -102,12 +102,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // Continue even if this fails
       }
       
-      const { error } = await supabase.auth.signUp({ 
+      const { error, data } = await supabase.auth.signUp({ 
         email, 
-        password 
+        password,
+        options: {
+          data: {
+            username: username || email.split('@')[0], // Use username if provided, otherwise use part of email
+          }
+        }
       });
       
       if (error) throw error;
+      
+      // If we have a new user, update the username in profiles table
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ username: username || email.split('@')[0] })
+          .eq('id', data.user.id);
+        
+        if (profileError) {
+          console.error('Error updating profile:', profileError);
+        }
+      }
       
       toast.success('Verification email sent! Check your inbox.', { position: 'top-center' });
     } catch (error: any) {
