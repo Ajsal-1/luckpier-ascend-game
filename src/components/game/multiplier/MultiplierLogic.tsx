@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import { formatMultiplier } from './utils';
 import { ChartDataPoint } from './types';
@@ -69,6 +70,7 @@ const MultiplierLogic: React.FC<MultiplierLogicProps> = ({
       setCrashEffectActive(true);
       onCrash(roundedMultiplier);
       onMultiplierUpdate(roundedMultiplier);
+      setDisplayValue(formatMultiplier(roundedMultiplier));
       return;
     }
     

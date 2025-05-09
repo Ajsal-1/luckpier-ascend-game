@@ -35,6 +35,11 @@ export const usePlayerActions = ({
       return;
     }
     
+    if (amount <= 0) {
+      toast.error("Bet amount must be greater than zero.", { position: 'top-center' });
+      return;
+    }
+    
     if (amount > userBalance) {
       toast.error("Insufficient balance for this bet.", { position: 'top-center' });
       return;
@@ -87,7 +92,7 @@ export const usePlayerActions = ({
       
       // Show win notification
       toast.success(
-        `You won $${profit.toFixed(2)}!`, 
+        `You won $${profit.toFixed(2)}! Total: $${winnings.toFixed(2)}`, 
         { position: 'top-center' }
       );
     }

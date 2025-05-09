@@ -8,11 +8,15 @@ const randomNames = [
   'TokenMaster', 'HashRacer', 'CryptoCraze', 'BullMarket', 'ChainGang'
 ];
 
-// Generate crash point using the provided algorithm
+// Generate crash point using the specified algorithm
 export const getCrashMultiplier = (): number => {
   const houseEdge = 0.01;
   const r = Math.random();
   const crash = Math.max(1.0, Math.floor((100 * (1 - houseEdge)) / r) / 100);
+  
+  // Log the generated crash point for debugging
+  console.log(`Generated crash point: ${crash.toFixed(2)}x`);
+  
   return parseFloat(crash.toFixed(2));
 };
 

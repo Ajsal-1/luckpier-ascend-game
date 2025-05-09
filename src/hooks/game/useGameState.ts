@@ -1,5 +1,5 @@
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { GAME_STATE } from './types';
 import { getCrashMultiplier } from './gameUtils';
 
@@ -16,23 +16,29 @@ export const useGameState = () => {
   
   // Start the game countdown
   const startCountdown = useCallback(() => {
-    setGameState(GAME_STATE.COUNTDOWN);
-    setCountdownTimer(3);
-    
-    // Generate crash point at the start of countdown
-    // This ensures the crash point is determined before the round starts
-    const newCrashPoint = getCrashMultiplier();
-    setCrashPoint(newCrashPoint);
-    console.log(`Generated crash point: ${newCrashPoint}x`);
-  }, []);
+    // Only start countdown if we're in WAITING or CRASHED state
+    if (gameState !== GAME_STATE.PLAYING && gameState !== GAME_STATE.COUNTDOWN) {
+      setGameState(GAME_STATE.COUNTDOWN);
+      setCountdownTimer(3);
+      setCurrentMultiplier(1);
+      
+      // Generate crash point at the start of countdown
+      // This ensures the crash point is determined before the round starts
+      const newCrashPoint = getCrashMultiplier();
+      setCrashPoint(newCrashPoint);
+    }
+  }, [gameState]);
 
   // Handle game crash
   const handleCrash = useCallback((value: number) => {
-    setGameState(GAME_STATE.CRASHED);
-    
-    // Start cooldown for next round (3 seconds)
-    setCountdownTimer(3);
-  }, []);
+    // Only process crash if we're currently playing
+    if (gameState === GAME_STATE.PLAYING) {
+      setGameState(GAME_STATE.CRASHED);
+      
+      // Start cooldown for next round (3 seconds)
+      setCountdownTimer(3);
+    }
+  }, [gameState]);
 
   return {
     gameState,
