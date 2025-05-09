@@ -1,8 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { GAME_STATE } from './game/types';
 import { useGameState } from './game/useGameState';
 import { usePlayerActions } from './game/usePlayerActions';
 import { useGameHistory } from './game/useGameHistory';
+import { 
+  getCrashMultiplier, 
+  getServerFallbackCrashPoint, 
+  generateServerCrashPoint 
+} from './game/gameUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -14,6 +19,9 @@ export const useCrashGame = (initialBalance: number = 1000) => {
   const [isUsingServerCrashPoints, setIsUsingServerCrashPoints] = useState<boolean>(false);
   const [currentRoundId, setCurrentRoundId] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [errorCount, setErrorCount] = useState<number>(0);
+  const gameLoopActiveRef = useRef<boolean>(false);
+  const roundsInProgress = useRef<boolean>(false);
 
   // Get game state logic
   const {
@@ -21,12 +29,15 @@ export const useCrashGame = (initialBalance: number = 1000) => {
     countdownTimer,
     crashPoint,
     currentMultiplier,
+    isRoundActive,
     gameStateRef,
     setGameState,
     setCountdownTimer,
     setCrashPoint,
     setCurrentMultiplier,
+    setIsRoundActive,
     startCountdown,
+    startPlaying,
     handleCrash: handleCrashState
   } = useGameState();
 
@@ -104,7 +115,7 @@ export const useCrashGame = (initialBalance: number = 1000) => {
         event: 'INSERT',
         schema: 'public',
         table: 'rounds',
-      }, (payload) => {
+      }, () => {
         fetchGameHistory();
       })
       .subscribe();
@@ -115,8 +126,15 @@ export const useCrashGame = (initialBalance: number = 1000) => {
   }, [fetchGameHistory]);
 
   // Handle crash with history update and database update
-  const handleCrash = async (value: number) => {
+  const handleCrash = useCallback(async (value: number) => {
+    if (!isRoundActive) return; // Prevent multiple crash handlers
+    
+    console.log(`Game crashed at ${value.toFixed(2)}x`);
+    
+    // Update game state
     handleCrashState(value);
+    
+    // Update history
     updateGameHistory(value);
     
     // Update round in database if we have a current round
@@ -147,118 +165,143 @@ export const useCrashGame = (initialBalance: number = 1000) => {
         console.error('Error updating round on crash:', err);
       }
     }
-  };
+  }, [currentRoundId, handleCrashState, isBetPlaced, isRoundActive, isUsingServerCrashPoints, playerWin, updateGameHistory]);
 
-  // Start a new round
-  const startNewRound = async () => {
+  // Get recent crash points from Supabase
+  const getRecentCrashPoints = useCallback(async () => {
     try {
-      console.log("Starting new round...");
-      // Get recent crash points to generate next crash
       const { data, error } = await supabase.rpc('get_recent_crash_points');
       
-      if (error) {
-        console.error('Error fetching recent crash points:', error);
-        throw error;
+      if (error) throw error;
+      
+      if (data && data.length > 0 && data[0].crash_values) {
+        return data[0].crash_values;
       }
+      
+      return [];
+    } catch (err) {
+      console.error('Error fetching recent crash points:', err);
+      return [];
+    }
+  }, []);
+  
+  // Generate next crash point
+  const generateNextCrashPoint = useCallback(async () => {
+    try {
+      console.log("Generating next crash point...");
+      // Get recent crash points to generate next crash
+      const recentCrashes = await getRecentCrashPoints();
       
       let nextCrashPoint: number;
       
-      if (data && data.length > 0 && data[0].crash_values) {
+      if (recentCrashes && recentCrashes.length > 0) {
         console.log("Using server crash points based on historical data");
-        // Using Supabase function to get the next crash point
-        const recentCrashes = data[0].crash_values;
         console.log("Recent crashes:", recentCrashes);
         
-        const { data: crashPointData, error: crashPointError } = await supabase.rpc(
-          'generate_crash_point', 
-          { recent_crashes: recentCrashes }
-        );
-        
-        if (crashPointError) {
-          console.error('Error generating crash point:', crashPointError);
-          throw crashPointError;
-        }
-        
-        // Ensure we have a valid crash point that's at least 1.05
-        nextCrashPoint = crashPointData ? Math.max(1.05, parseFloat(crashPointData)) : getCrashMultiplierFallback();
-        console.log(`Server generated crash point: ${nextCrashPoint.toFixed(2)}x`);
-        
+        // Use server-generated crash point based on history
+        nextCrashPoint = generateServerCrashPoint(recentCrashes);
         setIsUsingServerCrashPoints(true);
+        console.log(`Generated crash point based on history: ${nextCrashPoint.toFixed(2)}x`);
       } else {
         // Fallback to client-side if no data
         console.log("No server crash data, using fallback generator");
-        nextCrashPoint = getCrashMultiplierFallback();
+        nextCrashPoint = getServerFallbackCrashPoint();
         setIsUsingServerCrashPoints(false);
+        console.log(`Generated fallback crash point: ${nextCrashPoint.toFixed(2)}x`);
       }
+      
+      return nextCrashPoint;
+    } catch (err) {
+      console.error('Error generating next crash point:', err);
+      setErrorCount(prev => prev + 1);
+      
+      // Use fallback crash point generation if server fails
+      const fallbackCrashPoint = getServerFallbackCrashPoint();
+      console.log(`Error getting crash point, using fallback: ${fallbackCrashPoint.toFixed(2)}x`);
+      
+      setIsUsingServerCrashPoints(false);
+      if (errorCount > 3) {
+        toast.error("Server connection issues detected. Using local crash generator.", { position: 'top-center' });
+      }
+      
+      return fallbackCrashPoint;
+    }
+  }, [errorCount, getRecentCrashPoints]);
+
+  // Start a new round
+  const startNewRound = useCallback(async () => {
+    if (roundsInProgress.current) {
+      console.log("Round already in progress, skipping startNewRound");
+      return;
+    }
+    
+    roundsInProgress.current = true;
+    
+    try {
+      console.log("Starting new round...");
+      
+      // Generate the next crash point
+      const nextCrashPoint = await generateNextCrashPoint();
       
       // Create a new round in the database
-      const { data: roundData, error: roundError } = await supabase
-        .from('rounds')
-        .insert({
-          crash_multiplier: nextCrashPoint,
-          status: 'pending'
-        })
-        .select('id')
-        .single();
-        
-      if (roundError) {
-        console.error('Error creating new round:', roundError);
-        throw roundError;
-      }
+      let roundId = null;
       
-      // Store the current round ID
-      if (roundData) {
-        setCurrentRoundId(roundData.id);
-        console.log(`New round created with ID: ${roundData.id}`);
+      try {
+        const { data: roundData, error: roundError } = await supabase
+          .from('rounds')
+          .insert({
+            crash_multiplier: nextCrashPoint,
+            status: 'pending'
+          })
+          .select('id')
+          .single();
+          
+        if (roundError) throw roundError;
+        
+        // Store the current round ID
+        if (roundData) {
+          roundId = roundData.id;
+          setCurrentRoundId(roundId);
+          console.log(`New round created with ID: ${roundId}`);
+        }
+      } catch (err) {
+        console.error('Error creating round in database:', err);
+        // Continue with local round even if database fails
       }
       
       // Set the crash point locally
       setCrashPoint(nextCrashPoint);
-      console.log(`New round started with crash point: ${nextCrashPoint.toFixed(2)}x`);
+      console.log(`New round prepared with crash point: ${nextCrashPoint.toFixed(2)}x`);
       
+      // Start countdown
+      startCountdown();
     } catch (err) {
       console.error('Error starting new round:', err);
-      // Use fallback crash point generation if server fails
-      const fallbackCrashPoint = getCrashMultiplierFallback();
+      // Use fallback crash point generation if everything fails
+      const fallbackCrashPoint = getServerFallbackCrashPoint();
       setCrashPoint(fallbackCrashPoint);
       setIsUsingServerCrashPoints(false);
+      
+      // Start countdown anyway to keep the game going
+      startCountdown();
+      
       toast.error("Error starting new round, using local crash generator", { position: 'top-center' });
+    } finally {
+      roundsInProgress.current = false;
     }
-  };
-  
-  // Client-side fallback for crash point generation with improved variability
-  const getCrashMultiplierFallback = () => {
-    // Improved algorithm to generate a wider range of crash points
-    const houseEdge = 0.01;
-    
-    // Use a better random value that avoids values too close to 0
-    const r = Math.max(0.01, Math.random());
-    
-    let crash: number;
-    
-    // 15% chance of high multiplier (2x to 15x)
-    if (Math.random() < 0.15) {
-      crash = 2 + Math.random() * 13;
-    } 
-    // 5% chance of very high multiplier (15x to 50x)
-    else if (Math.random() < 0.05) {
-      crash = 15 + Math.random() * 35;
-    }
-    // 80% chance of normal multiplier (1x to 3x)
-    else {
-      crash = Math.max(1.05, Math.floor((100 * (1 - houseEdge)) / r) / 100);
-    }
-    
-    console.log(`Generated fallback crash point: ${crash.toFixed(2)}x`);
-    
-    return parseFloat(crash.toFixed(2));
-  };
+  }, [generateNextCrashPoint, setCrashPoint, setCurrentRoundId, startCountdown]);
 
   // Modified place bet function to record in database
-  const handlePlaceBetWithDB = async (amount: number, autoCashout: number | null) => {
+  const handlePlaceBetWithDB = useCallback(async (amount: number, autoCashout: number | null) => {
     // If not authenticated, show a toast
     if (!isAuthenticated) {
       toast.error("Please sign in to place bets", { position: 'top-center' });
+      return;
+    }
+    
+    // Only allow bets during countdown
+    if (gameState !== GAME_STATE.COUNTDOWN && gameState !== GAME_STATE.WAITING) {
+      toast.error("You can only place bets during the countdown", { position: 'top-center' });
       return;
     }
     
@@ -283,10 +326,20 @@ export const useCrashGame = (initialBalance: number = 1000) => {
         // Continue with local bet even if database fails
       }
     }
-  };
+    
+    // If we're in WAITING state, start a new round
+    if (gameState === GAME_STATE.WAITING) {
+      startNewRound();
+    }
+  }, [currentRoundId, gameState, handlePlaceBet, isAuthenticated, isUsingServerCrashPoints, startNewRound]);
 
   // Modified cash out function to record in database
-  const handleCashoutWithDB = async () => {
+  const handleCashoutWithDB = useCallback(async () => {
+    // Only allow cashout during PLAYING state
+    if (gameState !== GAME_STATE.PLAYING) {
+      return;
+    }
+    
     // Handle cashout in local state
     handleCashout();
     
@@ -309,7 +362,7 @@ export const useCrashGame = (initialBalance: number = 1000) => {
         if (playerBet !== null) {
           const winnings = playerBet * currentMultiplier;
           
-          // Use functions.invoke instead of rpc for the edge function
+          // Use functions.invoke for the edge function
           const { error: balanceError } = await supabase.functions.invoke(
             'update_user_balance', 
             { 
@@ -328,38 +381,42 @@ export const useCrashGame = (initialBalance: number = 1000) => {
         console.error('Error recording cashout in database:', err);
       }
     }
-  };
+  }, [currentMultiplier, currentRoundId, gameState, handleCashout, isAuthenticated, isUsingServerCrashPoints, playerBet]);
 
-  // Modified countdown timer logic with server integration
+  // Auto-cashout logic
   useEffect(() => {
+    if (gameState === GAME_STATE.PLAYING && 
+        playerAutoCashout !== null && 
+        currentMultiplier >= playerAutoCashout && 
+        playerWin === null) {
+      console.log(`Auto-cashout triggered at ${currentMultiplier.toFixed(2)}x`);
+      handleCashoutWithDB();
+    }
+  }, [currentMultiplier, gameState, handleCashoutWithDB, playerAutoCashout, playerWin]);
+
+  // Main game loop effect
+  useEffect(() => {
+    // Prevent multiple instances of the game loop
+    if (gameLoopActiveRef.current) return;
+    
+    gameLoopActiveRef.current = true;
+    
+    // Process the countdown
     if (countdownTimer !== null && countdownTimer > 0) {
       const timer = setTimeout(() => {
-        setCountdownTimer(prev => {
-          if (prev === null) return null;
-          const newValue = prev - 0.1;
+        setCountdownTimer(prevTimer => {
+          if (prevTimer === null) return null;
+          const newValue = prevTimer - 0.1;
           
           // When countdown reaches zero, start the game
           if (newValue <= 0 && gameStateRef.current === GAME_STATE.COUNTDOWN) {
-            setGameState(GAME_STATE.PLAYING);
-            setCurrentMultiplier(1);
-            
-            // Update round status to 'in_progress' in database
-            if (currentRoundId && isUsingServerCrashPoints) {
-              console.log(`Starting round ${currentRoundId}`);
-              supabase
-                .from('rounds')
-                .update({ status: 'in_progress', started_at: new Date().toISOString() })
-                .eq('id', currentRoundId)
-                .then(({ error }) => {
-                  if (error) console.error('Error updating round status:', error);
-                });
-            }
-            
+            startPlaying();
             return null;
           }
           
           // When cooldown after crash reaches zero, reset for new round
           if (newValue <= 0 && gameStateRef.current === GAME_STATE.CRASHED) {
+            // Reset game state for next round
             setGameState(GAME_STATE.WAITING);
             setCrashPoint(null);
             setCurrentMultiplier(1);
@@ -368,10 +425,8 @@ export const useCrashGame = (initialBalance: number = 1000) => {
             setPlayerWin(null);
             setIsBetPlaced(false);
             resetPlayers();
-            startCountdown();
             
-            // Start a new round in the database
-            console.log("Crash cooldown complete, starting new round");
+            // Start a new round
             startNewRound();
             
             return null;
@@ -381,20 +436,22 @@ export const useCrashGame = (initialBalance: number = 1000) => {
         });
       }, 100);
       
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        gameLoopActiveRef.current = false;
+      };
+    } else {
+      gameLoopActiveRef.current = false;
     }
-  }, [countdownTimer, gameStateRef, setGameState, setCountdownTimer, setCrashPoint, 
-      setCurrentMultiplier, setPlayerBet, setPlayerAutoCashout, setPlayerWin, setIsBetPlaced, 
-      resetPlayers, startCountdown, currentRoundId, isUsingServerCrashPoints]);
+  }, [countdownTimer, gameStateRef, resetPlayers, setCrashPoint, setCurrentMultiplier, setGameState, setIsBetPlaced, setPlayerAutoCashout, setPlayerBet, setPlayerWin, startNewRound, startPlaying]);
 
-  // Auto-start the first round with server integration
+  // Auto-start the first round
   useEffect(() => {
-    if (gameState === GAME_STATE.WAITING) {
-      console.log("Game in WAITING state, starting new round");
+    if (gameState === GAME_STATE.WAITING && !roundsInProgress.current) {
+      console.log("Game in WAITING state, starting first round");
       startNewRound();
-      startCountdown();
     }
-  }, [gameState, startCountdown]);
+  }, [gameState, startNewRound]);
 
   return {
     userBalance,
@@ -407,6 +464,7 @@ export const useCrashGame = (initialBalance: number = 1000) => {
     gameHistory,
     players,
     isAuthenticated,
+    isRoundActive,
     handlePlaceBet: handlePlaceBetWithDB,
     handleCashout: handleCashoutWithDB,
     handleCrash,

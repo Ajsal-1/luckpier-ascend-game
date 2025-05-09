@@ -8,6 +8,7 @@ import LeaderBoard from '@/components/game/LeaderBoard';
 import HelpModal from '@/components/game/HelpModal';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const CrashGame: React.FC = () => {
   const {
@@ -25,17 +26,28 @@ const CrashGame: React.FC = () => {
     handleCashout,
     handleCrash,
     setCurrentMultiplier,
+    isRoundActive,
   } = useCrashGame();
 
   // Handle sign in/out
   const handleSignIn = async () => {
-    await supabase.auth.signInWithOtp({
-      email: prompt('Enter your email to sign in/sign up:') || '',
-    });
+    try {
+      await supabase.auth.signInWithOtp({
+        email: prompt('Enter your email to sign in/sign up:') || '',
+      });
+      toast.success("Check your email for the login link", { position: 'top-center' });
+    } catch (error) {
+      toast.error("Sign in failed. Please try again.", { position: 'top-center' });
+    }
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+      toast.success("Signed out successfully", { position: 'top-center' });
+    } catch (error) {
+      toast.error("Sign out failed. Please try again.", { position: 'top-center' });
+    }
   };
 
   return (
@@ -47,6 +59,16 @@ const CrashGame: React.FC = () => {
         ) : (
           <Button onClick={handleSignIn} variant="outline" size="sm">Sign In</Button>
         )}
+      </div>
+      
+      {/* Game status indicator */}
+      <div className="w-full flex justify-between items-center mb-2">
+        <div className="text-sm font-medium">
+          {gameState === GAME_STATE.WAITING && "Waiting for next round..."}
+          {gameState === GAME_STATE.COUNTDOWN && `Starting in ${countdownTimer?.toFixed(1)}s`}
+          {gameState === GAME_STATE.PLAYING && "Game in progress"}
+          {gameState === GAME_STATE.CRASHED && "Game crashed"}
+        </div>
       </div>
       
       {/* Game History */}

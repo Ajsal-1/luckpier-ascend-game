@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import { formatMultiplier } from './utils';
 import { ChartDataPoint } from './types';
@@ -32,9 +33,11 @@ const MultiplierLogic: React.FC<MultiplierLogicProps> = ({
   const [crashEffectActive, setCrashEffectActive] = useState(false);
   const animationRef = useRef<number | null>(null);
   const startTimeRef = useRef<number | null>(null);
+  const hasCrashedRef = useRef<boolean>(false);
   
-  // Increased growth factor from 0.075 to 0.15 for faster rise
-  const growthFactor = 0.15; // Doubled from original 0.075 to make multiplier rise faster
+  // Growth factor - higher = faster rise (previously 0.15)
+  // Using 0.18 for even more exciting gameplay
+  const growthFactor = 0.18;
 
   const animateMultiplier = (timestamp: number) => {
     if (!startTimeRef.current) {
@@ -65,10 +68,20 @@ const MultiplierLogic: React.FC<MultiplierLogicProps> = ({
     
     // Check if we've reached the crash point
     if (crashValue && roundedMultiplier >= crashValue) {
-      setCrashEffectActive(true);
-      onCrash(roundedMultiplier);
-      onMultiplierUpdate(roundedMultiplier);
-      setDisplayValue(formatMultiplier(roundedMultiplier));
+      if (!hasCrashedRef.current) {
+        // Only trigger crash once to avoid multiple crash events
+        hasCrashedRef.current = true;
+        setCrashEffectActive(true);
+        onCrash(roundedMultiplier);
+        onMultiplierUpdate(roundedMultiplier);
+        setDisplayValue(formatMultiplier(roundedMultiplier));
+        
+        // Cancel the animation
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current);
+          animationRef.current = null;
+        }
+      }
       return;
     }
     
@@ -76,15 +89,23 @@ const MultiplierLogic: React.FC<MultiplierLogicProps> = ({
     onMultiplierUpdate(roundedMultiplier);
     setDisplayValue(formatMultiplier(roundedMultiplier));
     
+    // Continue the animation loop
     animationRef.current = requestAnimationFrame(animateMultiplier);
   };
 
   useEffect(() => {
     if (isPlaying && !isCrashed && !winValue) {
+      // Reset crash flag when starting a new round
+      hasCrashedRef.current = false;
+      
+      // Reset the timer and chart
       startTimeRef.current = null;
       setChartData([{ x: 0, y: 1 }]); // Initialize with starting point
+      
+      // Start the animation
       animationRef.current = requestAnimationFrame(animateMultiplier);
       setCrashEffectActive(false); // Reset crash effect
+      
     } else if (isCrashed && crashValue) {
       // Display the exact crash value
       setDisplayValue(formatMultiplier(currentMultiplier));
@@ -96,17 +117,23 @@ const MultiplierLogic: React.FC<MultiplierLogicProps> = ({
       }, 2000); // 2 seconds of crash effect
       
       return () => clearTimeout(resetTimer);
+      
     } else if (winValue) {
+      // Display cashout value
       setDisplayValue(formatMultiplier(winValue));
+      
     } else {
+      // Default state - show 1.00x and clear chart
       setDisplayValue("1.00x");
-      setChartData([]); // Clear chart when not playing
-      setCrashEffectActive(false); // Reset crash effect
+      setChartData([]);
+      setCrashEffectActive(false);
     }
 
+    // Clean up animation on unmount or state change
     return () => {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
       }
     };
   }, [isPlaying, isCrashed, winValue, crashValue, currentMultiplier, onMultiplierUpdate, onCrash]);

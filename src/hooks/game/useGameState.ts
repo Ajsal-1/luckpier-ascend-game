@@ -1,7 +1,6 @@
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { GAME_STATE } from './types';
-import { getCrashMultiplier } from './gameUtils';
 
 export const useGameState = () => {
   // Game state
@@ -9,6 +8,7 @@ export const useGameState = () => {
   const [countdownTimer, setCountdownTimer] = useState<number | null>(3);
   const [crashPoint, setCrashPoint] = useState<number | null>(null);
   const [currentMultiplier, setCurrentMultiplier] = useState<number>(1);
+  const [isRoundActive, setIsRoundActive] = useState<boolean>(false);
   
   // Use ref to preserve values between renders for timers
   const gameStateRef = useRef(gameState);
@@ -21,22 +21,29 @@ export const useGameState = () => {
       setGameState(GAME_STATE.COUNTDOWN);
       setCountdownTimer(3);
       setCurrentMultiplier(1);
-      
-      // Generate crash point at the start of countdown
-      // This ensures the crash point is determined before the round starts
-      const newCrashPoint = getCrashMultiplier();
-      setCrashPoint(newCrashPoint);
+      setIsRoundActive(false);
     }
   }, [gameState]);
 
   // Handle game crash
   const handleCrash = useCallback((value: number) => {
-    // Only process crash if we're currently playing
-    if (gameState === GAME_STATE.PLAYING) {
+    // Only process crash if we're currently playing and round is active
+    if (gameState === GAME_STATE.PLAYING && isRoundActive) {
       setGameState(GAME_STATE.CRASHED);
+      setIsRoundActive(false);
       
       // Start cooldown for next round (3 seconds)
       setCountdownTimer(3);
+    }
+  }, [gameState, isRoundActive]);
+  
+  // Start playing state
+  const startPlaying = useCallback(() => {
+    if (gameState === GAME_STATE.COUNTDOWN) {
+      setGameState(GAME_STATE.PLAYING);
+      setIsRoundActive(true);
+      setCurrentMultiplier(1);
+      setCountdownTimer(null);
     }
   }, [gameState]);
 
@@ -45,12 +52,15 @@ export const useGameState = () => {
     countdownTimer,
     crashPoint,
     currentMultiplier,
+    isRoundActive,
     gameStateRef,
     setGameState,
     setCountdownTimer,
     setCrashPoint,
     setCurrentMultiplier,
+    setIsRoundActive,
     startCountdown,
+    startPlaying,
     handleCrash,
   };
 };
