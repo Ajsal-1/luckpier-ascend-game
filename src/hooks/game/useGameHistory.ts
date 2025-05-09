@@ -29,7 +29,7 @@ export const useGameHistory = () => {
       if (data && data.length > 0) {
         const historyItems: HistoryItem[] = data.map(round => ({
           id: round.id,
-          multiplier: parseFloat(round.crash_multiplier)
+          multiplier: parseFloat(round.crash_multiplier.toString()) // Convert to string first before parsing
         }));
         
         setGameHistory(historyItems);
