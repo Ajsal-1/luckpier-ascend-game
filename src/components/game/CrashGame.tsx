@@ -1,22 +1,25 @@
 
-import React from 'react';
-import { useCrashGame, GAME_STATE } from '@/hooks/useCrashGame';
+import React, { useState } from 'react';
+import { useMultiplayerCrashGame } from '@/hooks/game/useMultiplayerCrashGame';
+import { GAME_STATE } from '@/hooks/game/types';
 import Multiplier from '@/components/game/Multiplier';
 import BettingPanel from '@/components/game/BettingPanel';
 import GameHistory from '@/components/game/GameHistory';
 import LeaderBoard from '@/components/game/LeaderBoard';
 import HelpModal from '@/components/game/HelpModal';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 
 const CrashGame: React.FC = () => {
+  const [betAmount, setBetAmount] = useState<string>("100.00");
+
   const {
-    userBalance,
     gameState,
     countdownTimer,
-    crashPoint,
     currentMultiplier,
+    crashPoint,
+    isRoundActive,
+    userBalance,
+    playerBet,
     playerWin,
     isBetPlaced,
     gameHistory,
@@ -24,30 +27,12 @@ const CrashGame: React.FC = () => {
     isAuthenticated,
     handlePlaceBet,
     handleCashout,
-    handleCrash,
-    setCurrentMultiplier,
-    isRoundActive,
-  } = useCrashGame();
+    handleSignIn,
+    handleSignOut,
+  } = useMultiplayerCrashGame();
 
-  // Handle sign in/out
-  const handleSignIn = async () => {
-    try {
-      await supabase.auth.signInWithOtp({
-        email: prompt('Enter your email to sign in/sign up:') || '',
-      });
-      toast.success("Check your email for the login link", { position: 'top-center' });
-    } catch (error) {
-      toast.error("Sign in failed. Please try again.", { position: 'top-center' });
-    }
-  };
-
-  const handleSignOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      toast.success("Signed out successfully", { position: 'top-center' });
-    } catch (error) {
-      toast.error("Sign out failed. Please try again.", { position: 'top-center' });
-    }
+  const onPlaceBet = (amount: number) => {
+    handlePlaceBet(amount);
   };
 
   return (
@@ -69,6 +54,9 @@ const CrashGame: React.FC = () => {
           {gameState === GAME_STATE.PLAYING && "Game in progress"}
           {gameState === GAME_STATE.CRASHED && "Game crashed"}
         </div>
+        <div className="text-sm font-medium">
+          Players: {players.length}
+        </div>
       </div>
       
       {/* Game History */}
@@ -84,7 +72,7 @@ const CrashGame: React.FC = () => {
             isPlaying={gameState === GAME_STATE.PLAYING}
             isCrashed={gameState === GAME_STATE.CRASHED}
             hasWon={playerWin !== null}
-            onPlaceBet={handlePlaceBet}
+            onPlaceBet={onPlaceBet}
             onCashout={handleCashout}
             remainingTime={countdownTimer}
             balance={userBalance}
@@ -102,9 +90,9 @@ const CrashGame: React.FC = () => {
             isCrashed={gameState === GAME_STATE.CRASHED}
             winValue={playerWin}
             crashValue={crashPoint}
-            onCrash={handleCrash}
+            onCrash={() => {}} // This is now handled by the server
             currentMultiplier={currentMultiplier}
-            onMultiplierUpdate={setCurrentMultiplier}
+            onMultiplierUpdate={() => {}} // This is now handled by the server
             gameState={gameState}
           />
         </div>
