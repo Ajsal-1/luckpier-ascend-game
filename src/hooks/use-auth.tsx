@@ -108,7 +108,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         options: {
           data: {
             username: username || email.split('@')[0], // Use username if provided, otherwise use part of email
-          }
+          },
+          // Remove emailRedirectTo option to prevent verification emails
         }
       });
       
@@ -126,7 +127,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       }
       
-      // Removed toast success message about verification email
+      // After signup is complete, try to immediately sign in
+      if (data.user) {
+        await signIn(email, password);
+      }
+      
     } catch (error: any) {
       toast.error(`Sign up error: ${error.message}`, { position: 'top-center' });
       throw error;
