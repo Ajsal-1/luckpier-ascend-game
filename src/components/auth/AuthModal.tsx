@@ -26,7 +26,8 @@ export default function AuthModal({
   const {
     signIn,
     signUp,
-    signInWithOtp
+    signInWithOtp,
+    refreshWalletBalance
   } = useAuth();
   
   const handleSubmit = async (e: React.FormEvent) => {
@@ -37,7 +38,10 @@ export default function AuthModal({
         await signIn(email, password);
       } else {
         await signUp(email, password, username);
+        // Refresh wallet balance after signing up
+        await refreshWalletBalance();
       }
+      // Close the modal after successful login or signup
       onClose();
     } catch (error) {
       console.error('Auth error:', error);

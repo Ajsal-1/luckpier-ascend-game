@@ -126,7 +126,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       }
       
-      toast.success('Verification email sent! Check your inbox.', { position: 'top-center' });
+      // Removed toast success message about verification email
     } catch (error: any) {
       toast.error(`Sign up error: ${error.message}`, { position: 'top-center' });
       throw error;
