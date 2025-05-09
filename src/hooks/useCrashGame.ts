@@ -84,6 +84,7 @@ export const useCrashGame = (initialBalance: number = 1000) => {
             setPlayerWin(null);
             setIsBetPlaced(false); // Reset bet placement status
             resetPlayers();
+            startCountdown(); // Automatically start next round
             return null;
           }
           
@@ -94,7 +95,8 @@ export const useCrashGame = (initialBalance: number = 1000) => {
       return () => clearTimeout(timer);
     }
   }, [countdownTimer, gameStateRef, setGameState, setCountdownTimer, setCrashPoint, 
-      setCurrentMultiplier, setPlayerBet, setPlayerAutoCashout, setPlayerWin, setIsBetPlaced, resetPlayers]);
+      setCurrentMultiplier, setPlayerBet, setPlayerAutoCashout, setPlayerWin, setIsBetPlaced, 
+      resetPlayers, startCountdown]);
 
   // Auto cashout logic
   useEffect(() => {
@@ -112,26 +114,41 @@ export const useCrashGame = (initialBalance: number = 1000) => {
       // Simulate other players cashing out at random times
       players.forEach(player => {
         if (player.id !== 'player-user' && player.multiplier === null) {
-          const randomTime = Math.random() * 5000 + 1000; // 1-6 seconds
-          const randomMultiplier = 1.1 + Math.random() * 5; // 1.1-6.1x
+          // Each player has a different risk tolerance (1.1x to 10x)
+          const cashoutMultiplier = 1.1 + Math.random() * 8.9;
           
-          setTimeout(() => {
+          // Check each frame if they should cash out
+          const checkInterval = setInterval(() => {
             // Only cash out if game is still in progress
             if (gameStateRef.current === GAME_STATE.PLAYING) {
-              setPlayers(prev => 
-                prev.map(p => {
-                  if (p.id === player.id) {
-                    return { ...p, multiplier: randomMultiplier };
-                  }
-                  return p;
-                })
-              );
+              if (currentMultiplier >= cashoutMultiplier) {
+                setPlayers(prev => 
+                  prev.map(p => {
+                    if (p.id === player.id) {
+                      return { ...p, multiplier: currentMultiplier };
+                    }
+                    return p;
+                  })
+                );
+                clearInterval(checkInterval);
+              }
+            } else {
+              clearInterval(checkInterval);
             }
-          }, randomTime);
+          }, 100);
+          
+          return () => clearInterval(checkInterval);
         }
       });
     }
-  }, [gameState, players, gameStateRef, setPlayers]);
+  }, [gameState, players, gameStateRef, currentMultiplier, setPlayers]);
+
+  // Auto-start the first round if in waiting state
+  useEffect(() => {
+    if (gameState === GAME_STATE.WAITING) {
+      startCountdown();
+    }
+  }, [gameState, startCountdown]);
 
   return {
     userBalance,

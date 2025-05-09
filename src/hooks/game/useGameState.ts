@@ -20,6 +20,7 @@ export const useGameState = () => {
     setCountdownTimer(3);
     
     // Generate crash point at the start of countdown
+    // This ensures the crash point is determined before the round starts
     const newCrashPoint = getCrashMultiplier();
     setCrashPoint(newCrashPoint);
     console.log(`Generated crash point: ${newCrashPoint}x`);
@@ -29,7 +30,7 @@ export const useGameState = () => {
   const handleCrash = useCallback((value: number) => {
     setGameState(GAME_STATE.CRASHED);
     
-    // Start cooldown for next round
+    // Start cooldown for next round (3 seconds)
     setCountdownTimer(3);
   }, []);
 

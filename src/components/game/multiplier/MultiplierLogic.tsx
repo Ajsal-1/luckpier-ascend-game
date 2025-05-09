@@ -34,7 +34,8 @@ const MultiplierLogic: React.FC<MultiplierLogicProps> = ({
   const startTimeRef = useRef<number | null>(null);
   
   // Constants to control the multiplier growth curve
-  const growthFactor = 0.06; // Adjust for faster/slower growth
+  // Using similar formula to stake.com's exponential growth
+  const growthFactor = 0.075; // Controls exponential growth rate
 
   const animateMultiplier = (timestamp: number) => {
     if (!startTimeRef.current) {
@@ -43,14 +44,19 @@ const MultiplierLogic: React.FC<MultiplierLogicProps> = ({
 
     const elapsed = timestamp - startTimeRef.current;
     
-    // Calculate new multiplier using exponential growth function
-    // The longer the time, the faster it grows
-    const newMultiplier = 1 + Math.pow(elapsed * growthFactor / 1000, 1.5);
+    // Calculate new multiplier using exponential growth formula
+    // Similar to how stake.com calculates it
+    // This creates a curve that grows faster over time
+    const elapsedInSeconds = elapsed / 1000;
+    const newMultiplier = Math.pow(Math.E, growthFactor * elapsedInSeconds);
+    
+    // Round to 2 decimal places for display
+    const roundedMultiplier = Math.floor(newMultiplier * 100) / 100;
     
     // Update chart data with new point
     setChartData(prev => {
       // Keep a rolling window of points for performance
-      const newData = [...prev, { x: elapsed / 1000, y: newMultiplier }];
+      const newData = [...prev, { x: elapsedInSeconds, y: roundedMultiplier }];
       // Only keep the most recent 200 points for performance
       if (newData.length > 200) {
         return newData.slice(newData.length - 200);
@@ -59,16 +65,16 @@ const MultiplierLogic: React.FC<MultiplierLogicProps> = ({
     });
     
     // Check if we've reached the crash point
-    if (crashValue && newMultiplier >= crashValue) {
+    if (crashValue && roundedMultiplier >= crashValue) {
       setCrashEffectActive(true);
-      onCrash(newMultiplier);
-      onMultiplierUpdate(newMultiplier);
+      onCrash(roundedMultiplier);
+      onMultiplierUpdate(roundedMultiplier);
       return;
     }
     
     // Update the multiplier display
-    onMultiplierUpdate(newMultiplier);
-    setDisplayValue(formatMultiplier(newMultiplier));
+    onMultiplierUpdate(roundedMultiplier);
+    setDisplayValue(formatMultiplier(roundedMultiplier));
     
     animationRef.current = requestAnimationFrame(animateMultiplier);
   };

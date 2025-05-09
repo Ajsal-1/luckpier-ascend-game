@@ -1,3 +1,4 @@
+
 import { Player } from './types';
 
 // Random player names
@@ -7,18 +8,12 @@ const randomNames = [
   'TokenMaster', 'HashRacer', 'CryptoCraze', 'BullMarket', 'ChainGang'
 ];
 
-// Generate crash point (min 1.00, with occasional 1.00x crash)
+// Generate crash point using the provided algorithm
 export const getCrashMultiplier = (): number => {
-  // 1 in 33 chance of instant crash at 1.00x
-  if (Math.floor(Math.random() * 33) === 0) return 1.00;
-  
-  // Otherwise, generate random crash point
-  // Using house edge formula similar to real crypto crash games
+  const houseEdge = 0.01;
   const r = Math.random();
-  const multiplier = Math.max(1.00, Math.round(1.0 / (1.0 - r) * 100) / 100);
-  
-  // Cap at 1000x maximum multiplier
-  return Math.min(multiplier, 1000.0);
+  const crash = Math.max(1.0, Math.floor((100 * (1 - houseEdge)) / r) / 100);
+  return parseFloat(crash.toFixed(2));
 };
 
 // Get a random player name
