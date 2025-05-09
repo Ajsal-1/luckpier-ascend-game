@@ -1,3 +1,4 @@
+
 import { useState, useEffect, createContext, useContext } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -55,20 +56,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       setWallet(prev => ({ ...prev, loading: true }));
       
-      // Use a complete type bypass to work around the TypeScript error
-      // We know this query works at runtime, but TypeScript doesn't know about the wallets table yet
-      const result = await supabase.rpc('execute_sql', {
-        query_text: `SELECT * FROM wallets WHERE user_id = '${userId}'`
-      }) as any;
+      // Use the profiles table which we know exists in the TypeScript types
+      // Many applications store wallet balance in the profiles table
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('balance')
+        .eq('id', userId)
+        .single();
       
-      if (result.error) {
-        console.error('Error fetching wallet:', result.error);
+      if (error) {
+        console.error('Error fetching wallet balance:', error);
         return;
       }
       
-      if (result.data && result.data.length > 0) {
+      if (data) {
         setWallet({
-          balance: result.data[0].balance,
+          balance: data.balance || 0,
           loading: false
         });
       }
