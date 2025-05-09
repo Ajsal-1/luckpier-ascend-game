@@ -56,7 +56,7 @@ export const Navbar = () => {
                     {wallet.loading ? '...' : wallet.balance.toFixed(2)}
                   </div>
                   
-                  <Button onClick={() => signOut()} variant="outline" size="sm" className="hidden sm:flex">
+                  <Button onClick={() => signOut()} variant="outline" size="sm" className="hidden sm:flex bg-blue-500 hover:bg-blue-400">
                     Sign Out
                   </Button>
                 </> : <>
