@@ -1,1 +1,5 @@
+
 project_id = "judvbdveeeggoztaryub"
+
+[functions.update_user_balance]
+verify_jwt = true

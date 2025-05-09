@@ -6,6 +6,8 @@ import BettingPanel from '@/components/game/BettingPanel';
 import GameHistory from '@/components/game/GameHistory';
 import LeaderBoard from '@/components/game/LeaderBoard';
 import HelpModal from '@/components/game/HelpModal';
+import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 
 const CrashGame: React.FC = () => {
   const {
@@ -18,14 +20,35 @@ const CrashGame: React.FC = () => {
     isBetPlaced,
     gameHistory,
     players,
+    isAuthenticated,
     handlePlaceBet,
     handleCashout,
     handleCrash,
     setCurrentMultiplier,
   } = useCrashGame();
 
+  // Handle sign in/out
+  const handleSignIn = async () => {
+    await supabase.auth.signInWithOtp({
+      email: prompt('Enter your email to sign in/sign up:') || '',
+    });
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
+
   return (
     <div className="w-full">
+      {/* Auth Button */}
+      <div className="w-full flex justify-end mb-2">
+        {isAuthenticated ? (
+          <Button onClick={handleSignOut} variant="outline" size="sm">Sign Out</Button>
+        ) : (
+          <Button onClick={handleSignIn} variant="outline" size="sm">Sign In</Button>
+        )}
+      </div>
+      
       {/* Game History */}
       <div className="w-full">
         <GameHistory history={gameHistory} />

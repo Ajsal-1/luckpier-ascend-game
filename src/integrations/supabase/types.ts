@@ -74,6 +74,44 @@ export type Database = {
         }
         Relationships: []
       }
+      player_bets: {
+        Row: {
+          bet_amount: number
+          cashed_out_multiplier: number | null
+          created_at: string | null
+          id: string
+          round_id: string
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          bet_amount: number
+          cashed_out_multiplier?: number | null
+          created_at?: string | null
+          id?: string
+          round_id: string
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          bet_amount?: number
+          cashed_out_multiplier?: number | null
+          created_at?: string | null
+          id?: string
+          round_id?: string
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_bets_round_id_fkey"
+            columns: ["round_id"]
+            isOneToOne: false
+            referencedRelation: "rounds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           balance: number | null
@@ -98,6 +136,30 @@ export type Database = {
           id?: string
           updated_at?: string | null
           username?: string | null
+        }
+        Relationships: []
+      }
+      rounds: {
+        Row: {
+          crash_multiplier: number
+          ended_at: string | null
+          id: string
+          started_at: string | null
+          status: string | null
+        }
+        Insert: {
+          crash_multiplier: number
+          ended_at?: string | null
+          id?: string
+          started_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          crash_multiplier?: number
+          ended_at?: string | null
+          id?: string
+          started_at?: string | null
+          status?: string | null
         }
         Relationships: []
       }
@@ -133,7 +195,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generate_crash_point: {
+        Args: { recent_crashes: number[] }
+        Returns: number
+      }
+      get_recent_crash_points: {
+        Args: { count?: number }
+        Returns: {
+          crash_values: number[]
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
