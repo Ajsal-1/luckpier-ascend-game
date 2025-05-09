@@ -101,7 +101,7 @@ export default function AuthModal({
                 <Input id="password-signup" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} disabled={isLoading} required minLength={6} className="border-gray-800/40 bg-slate-50" />
                 <p className="text-xs text-gray-400">Password must be at least 6 characters</p>
               </div>
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" disabled={isLoading} className="w-full bg-[#ff9500]">
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Create Account
               </Button>
