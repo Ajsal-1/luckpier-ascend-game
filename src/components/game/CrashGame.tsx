@@ -7,10 +7,13 @@ import BettingPanel from '@/components/game/BettingPanel';
 import GameHistory from '@/components/game/GameHistory';
 import LeaderBoard from '@/components/game/LeaderBoard';
 import HelpModal from '@/components/game/HelpModal';
-import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/use-auth';
+import { toast } from 'sonner';
+import AuthModal from '@/components/auth/AuthModal';
 
 const CrashGame: React.FC = () => {
-  const [betAmount, setBetAmount] = useState<string>("100.00");
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const { isAuthenticated, wallet, refreshWalletBalance } = useAuth();
 
   const {
     gameState,
@@ -18,34 +21,53 @@ const CrashGame: React.FC = () => {
     currentMultiplier,
     crashPoint,
     isRoundActive,
-    userBalance,
     playerBet,
     playerWin,
     isBetPlaced,
     gameHistory,
     players,
-    isAuthenticated,
     handlePlaceBet,
     handleCashout,
-    handleSignIn,
-    handleSignOut,
   } = useMultiplayerCrashGame();
 
   const onPlaceBet = (amount: number) => {
+    if (!isAuthenticated) {
+      toast.error("Please sign in to place bets", { position: 'top-center' });
+      setIsAuthModalOpen(true);
+      return;
+    }
+    
+    // Check user's wallet balance
+    if (amount > wallet.balance) {
+      toast.error("Insufficient balance for this bet", { position: 'top-center' });
+      return;
+    }
+    
     handlePlaceBet(amount);
+    
+    // Refresh wallet balance after placing bet
+    setTimeout(() => {
+      refreshWalletBalance();
+    }, 1000);
+  };
+
+  const onCashout = () => {
+    if (!isAuthenticated) {
+      toast.error("Please sign in to cash out", { position: 'top-center' });
+      setIsAuthModalOpen(true);
+      return;
+    }
+    
+    handleCashout();
+    
+    // Refresh wallet balance after cashing out
+    setTimeout(() => {
+      refreshWalletBalance();
+    }, 1000);
   };
 
   return (
     <div className="w-full">
-      {/* Auth Button */}
-      <div className="w-full flex justify-end mb-2">
-        {isAuthenticated ? (
-          <Button onClick={handleSignOut} variant="outline" size="sm">Sign Out</Button>
-        ) : (
-          <Button onClick={handleSignIn} variant="outline" size="sm">Sign In</Button>
-        )}
-      </div>
-      
       {/* Game status indicator */}
       <div className="w-full flex justify-between items-center mb-2">
         <div className="text-sm font-medium">
@@ -73,9 +95,9 @@ const CrashGame: React.FC = () => {
             isCrashed={gameState === GAME_STATE.CRASHED}
             hasWon={playerWin !== null}
             onPlaceBet={onPlaceBet}
-            onCashout={handleCashout}
+            onCashout={onCashout}
             remainingTime={countdownTimer}
-            balance={userBalance}
+            balance={wallet.balance}
             isBetPlaced={isBetPlaced}
           />
         </div>
@@ -102,6 +124,12 @@ const CrashGame: React.FC = () => {
           <LeaderBoard players={players} />
         </div>
       </div>
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
     </div>
   );
 };

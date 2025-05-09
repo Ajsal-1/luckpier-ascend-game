@@ -1,111 +1,113 @@
 
 import React from 'react';
-
-// Types
-interface Transaction {
-  id: string;
-  date: string;
-  type: 'deposit' | 'withdraw' | 'game_win' | 'game_loss';
-  amount: number;
-  status: 'completed' | 'pending';
-}
-
-// Generate sample transaction data
-const generateTransactions = (): Transaction[] => {
-  const transactions: Transaction[] = [];
-  
-  for (let i = 0; i < 15; i++) {
-    const date = new Date();
-    date.setHours(date.getHours() - i * Math.floor(Math.random() * 24));
-    
-    const types = ['deposit', 'withdraw', 'game_win', 'game_loss'] as const;
-    const type = types[Math.floor(Math.random() * types.length)];
-    
-    const amount = Math.floor(Math.random() * 1000) / 100 + (type === 'deposit' ? 50 : 20);
-    const status = i === 0 ? 'pending' : 'completed';
-    
-    transactions.push({
-      id: `txn-${i}`,
-      date: date.toLocaleString(),
-      type,
-      amount,
-      status,
-    });
-  }
-  
-  return transactions;
-};
+import { useAuth } from '@/hooks/use-auth';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { ArrowUpRight, Info, Loader2, RefreshCw } from 'lucide-react';
+import AuthModal from '@/components/auth/AuthModal';
 
 const Wallet = () => {
-  const [transactions] = React.useState<Transaction[]>(generateTransactions());
-  const [balance] = React.useState<number>(10000);
-  
-  const getTypeLabel = (type: Transaction['type']) => {
-    switch (type) {
-      case 'deposit': return 'Deposit';
-      case 'withdraw': return 'Withdraw';
-      case 'game_win': return 'Game Win';
-      case 'game_loss': return 'Game Loss';
-    }
+  const { isAuthenticated, wallet, refreshWalletBalance } = useAuth();
+  const [isAuthModalOpen, setIsAuthModalOpen] = React.useState(false);
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
+
+  const handleRefreshBalance = async () => {
+    setIsRefreshing(true);
+    await refreshWalletBalance();
+    setIsRefreshing(false);
   };
-  
-  return (
-    <div className="animate-fade-in">
-      <h1 className="text-3xl font-bold mb-6">Wallet</h1>
-      
-      <div className="card-glass p-6 mb-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h2 className="text-sm text-gray-400 mb-1">Your Balance</h2>
-            <p className="text-4xl font-bold">${balance.toFixed(2)}</p>
-          </div>
-          
-          <div className="flex gap-3">
-            <button className="primary-button px-6 py-2">Deposit</button>
-            <button className="game-button bg-gray-800 text-white hover:bg-gray-700 px-6 py-2">Withdraw</button>
-          </div>
-        </div>
-      </div>
-      
-      <div className="card-glass overflow-hidden">
-        <h2 className="p-4 border-b border-gray-800 font-medium">Transaction History</h2>
+
+  if (!isAuthenticated) {
+    return (
+      <div className="container mx-auto py-8 px-4">
+        <Card className="bg-[#131c29] border-gray-800/40">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold">Wallet</CardTitle>
+            <CardDescription>
+              Sign in to access your wallet
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center justify-center py-10">
+            <p className="text-gray-400 mb-4">
+              You need to be signed in to view and manage your wallet
+            </p>
+            <Button onClick={() => setIsAuthModalOpen(true)}>
+              Sign In
+            </Button>
+          </CardContent>
+        </Card>
         
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-900/50">
-              <tr className="text-left text-gray-400 text-sm">
-                <th className="py-3 px-4">Time</th>
-                <th className="py-3 px-4">Type</th>
-                <th className="py-3 px-4 text-right">Amount</th>
-                <th className="py-3 px-4 text-right">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800/30">
-              {transactions.map((txn) => (
-                <tr key={txn.id} className="hover:bg-white/5">
-                  <td className="py-3 px-4">{txn.date}</td>
-                  <td className="py-3 px-4">{getTypeLabel(txn.type)}</td>
-                  <td className={`py-3 px-4 text-right ${
-                    txn.type === 'deposit' || txn.type === 'game_win' 
-                      ? 'text-green-500' 
-                      : 'text-red-500'
-                  }`}>
-                    {txn.type === 'deposit' || txn.type === 'game_win' ? '+' : '-'}${txn.amount.toFixed(2)}
-                  </td>
-                  <td className="py-3 px-4 text-right">
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      txn.status === 'completed' 
-                        ? 'bg-green-500/20 text-green-400' 
-                        : 'bg-yellow-500/20 text-yellow-400'
-                    }`}>
-                      {txn.status === 'completed' ? 'Completed' : 'Pending'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <AuthModal 
+          isOpen={isAuthModalOpen} 
+          onClose={() => setIsAuthModalOpen(false)} 
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto py-8 px-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="bg-[#131c29] border-gray-800/40 md:col-span-2">
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle className="text-xl font-bold">Wallet Balance</CardTitle>
+                <CardDescription>
+                  Your current balance and transaction history
+                </CardDescription>
+              </div>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={handleRefreshBalance}
+                disabled={isRefreshing}
+              >
+                {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 rounded-lg p-6 mb-4">
+              <div className="text-gray-400 text-sm mb-2">Available Balance</div>
+              <div className="text-3xl font-bold flex items-center">
+                <span className="text-gray-400 mr-2">$</span>
+                {wallet.loading ? '...' : wallet.balance.toFixed(2)}
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-4">Transaction History</h3>
+              {/* Will be implemented in a future update */}
+              <div className="text-center py-8 text-gray-400">
+                <p>Transaction history will be available soon</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-[#131c29] border-gray-800/40">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold">Quick Actions</CardTitle>
+            <CardDescription>
+              Manage your funds
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button className="w-full justify-between" disabled>
+              <span>Deposit Funds</span>
+              <ArrowUpRight className="h-4 w-4" />
+            </Button>
+            <Button className="w-full justify-between" variant="outline" disabled>
+              <span>Withdraw Funds</span>
+              <ArrowUpRight className="h-4 w-4" />
+            </Button>
+          </CardContent>
+          <CardFooter className="flex items-center justify-center text-xs text-gray-400">
+            <Info className="h-3 w-3 mr-1" />
+            <span>Deposit/withdraw functionality coming soon</span>
+          </CardFooter>
+        </Card>
       </div>
     </div>
   );
