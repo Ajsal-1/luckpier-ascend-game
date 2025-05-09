@@ -94,7 +94,7 @@ export default function AuthModal({
             <form onSubmit={handleSubmit} className="space-y-4 pt-2">
               <div className="space-y-2">
                 <Label htmlFor="email-signup">Email</Label>
-                <Input id="email-signup" type="email" placeholder="name@example.com" value={email} onChange={e => setEmail(e.target.value)} disabled={isLoading} required className="bg-[#0a121f] border-gray-800/40" />
+                <Input id="email-signup" type="email" placeholder="name@example.com" value={email} onChange={e => setEmail(e.target.value)} disabled={isLoading} required className="border-gray-800/40 bg-slate-50" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password-signup">Password</Label>
