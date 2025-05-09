@@ -271,11 +271,14 @@ export const useCrashGame = (initialBalance: number = 1000) => {
         if (playerBet !== null) {
           const winnings = playerBet * currentMultiplier;
           
-          const { error: balanceError } = await supabase.rpc(
+          // Use functions.invoke instead of rpc for the edge function
+          const { error: balanceError } = await supabase.functions.invoke(
             'update_user_balance', 
             { 
-              delta_amount: winnings,
-              user_id: (await supabase.auth.getUser()).data.user?.id
+              body: { 
+                delta_amount: winnings,
+                user_id: (await supabase.auth.getUser()).data.user?.id
+              }
             }
           );
           

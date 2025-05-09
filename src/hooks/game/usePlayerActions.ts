@@ -110,5 +110,6 @@ export const usePlayerActions = ({
     setPlayerAutoCashout,
     setPlayerWin,
     setIsBetPlaced,
+    setUserBalance, // Export this setter to fix the second error
   };
 };
