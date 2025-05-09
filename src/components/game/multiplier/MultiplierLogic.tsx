@@ -70,6 +70,7 @@ const MultiplierLogic: React.FC<MultiplierLogicProps> = ({
     if (crashValue && roundedMultiplier >= crashValue) {
       if (!hasCrashedRef.current) {
         // Only trigger crash once to avoid multiple crash events
+        console.log(`Crash detected: ${roundedMultiplier.toFixed(2)}x >= ${crashValue.toFixed(2)}x`);
         hasCrashedRef.current = true;
         setCrashEffectActive(true);
         onCrash(roundedMultiplier);
@@ -94,7 +95,10 @@ const MultiplierLogic: React.FC<MultiplierLogicProps> = ({
   };
 
   useEffect(() => {
+    console.log(`MultiplierLogic update: isPlaying=${isPlaying}, isCrashed=${isCrashed}, currentMultiplier=${currentMultiplier}, crashValue=${crashValue}`);
+    
     if (isPlaying && !isCrashed && !winValue) {
+      console.log("Starting multiplier animation");
       // Reset crash flag when starting a new round
       hasCrashedRef.current = false;
       
@@ -107,6 +111,7 @@ const MultiplierLogic: React.FC<MultiplierLogicProps> = ({
       setCrashEffectActive(false); // Reset crash effect
       
     } else if (isCrashed && crashValue) {
+      console.log(`Game crashed at ${currentMultiplier.toFixed(2)}x`);
       // Display the exact crash value
       setDisplayValue(formatMultiplier(currentMultiplier));
       setCrashEffectActive(true); // Activate crash effect
@@ -119,10 +124,12 @@ const MultiplierLogic: React.FC<MultiplierLogicProps> = ({
       return () => clearTimeout(resetTimer);
       
     } else if (winValue) {
+      console.log(`Player won at ${winValue.toFixed(2)}x`);
       // Display cashout value
       setDisplayValue(formatMultiplier(winValue));
       
     } else {
+      console.log("MultiplierLogic reset to default state");
       // Default state - show 1.00x and clear chart
       setDisplayValue("1.00x");
       setChartData([]);
@@ -132,6 +139,7 @@ const MultiplierLogic: React.FC<MultiplierLogicProps> = ({
     // Clean up animation on unmount or state change
     return () => {
       if (animationRef.current) {
+        console.log("Cleaning up multiplier animation");
         cancelAnimationFrame(animationRef.current);
         animationRef.current = null;
       }

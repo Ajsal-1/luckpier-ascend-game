@@ -14,38 +14,69 @@ export const useGameState = () => {
   const gameStateRef = useRef(gameState);
   gameStateRef.current = gameState;
   
+  // Ref to track if a countdown is already in progress
+  const isCountdownActiveRef = useRef<boolean>(false);
+  
   // Start the game countdown
   const startCountdown = useCallback(() => {
-    // Only start countdown if we're in WAITING or CRASHED state
-    if (gameState !== GAME_STATE.PLAYING && gameState !== GAME_STATE.COUNTDOWN) {
+    console.log(`Starting countdown, current game state: ${gameState}, countdown active: ${isCountdownActiveRef.current}`);
+    
+    // Only start countdown if we're in WAITING or CRASHED state and no countdown is already active
+    if ((gameState === GAME_STATE.WAITING || gameState === GAME_STATE.CRASHED) && !isCountdownActiveRef.current) {
+      console.log("Countdown initiated with 3 seconds");
+      isCountdownActiveRef.current = true;
       setGameState(GAME_STATE.COUNTDOWN);
       setCountdownTimer(3);
       setCurrentMultiplier(1);
       setIsRoundActive(false);
+    } else {
+      console.log(`Countdown not started - State: ${gameState}, Already active: ${isCountdownActiveRef.current}`);
     }
   }, [gameState]);
 
   // Handle game crash
   const handleCrash = useCallback((value: number) => {
+    console.log(`handleCrash called with value: ${value}, current state: ${gameState}, round active: ${isRoundActive}`);
+    
     // Only process crash if we're currently playing and round is active
     if (gameState === GAME_STATE.PLAYING && isRoundActive) {
+      console.log("Game crashed, transitioning to CRASHED state");
       setGameState(GAME_STATE.CRASHED);
       setIsRoundActive(false);
       
       // Start cooldown for next round (3 seconds)
       setCountdownTimer(3);
+      
+      // Reset the countdown active flag
+      isCountdownActiveRef.current = false;
     }
   }, [gameState, isRoundActive]);
   
   // Start playing state
   const startPlaying = useCallback(() => {
+    console.log(`startPlaying called, current state: ${gameState}`);
+    
     if (gameState === GAME_STATE.COUNTDOWN) {
+      console.log("Transitioning from COUNTDOWN to PLAYING");
       setGameState(GAME_STATE.PLAYING);
       setIsRoundActive(true);
       setCurrentMultiplier(1);
       setCountdownTimer(null);
+      
+      // Reset the countdown active flag
+      isCountdownActiveRef.current = false;
     }
   }, [gameState]);
+
+  // End current round and reset
+  const resetRound = useCallback(() => {
+    console.log("Resetting round");
+    setGameState(GAME_STATE.WAITING);
+    setIsRoundActive(false);
+    setCurrentMultiplier(1);
+    setCrashPoint(null);
+    isCountdownActiveRef.current = false;
+  }, []);
 
   return {
     gameState,
@@ -54,6 +85,7 @@ export const useGameState = () => {
     currentMultiplier,
     isRoundActive,
     gameStateRef,
+    isCountdownActiveRef,
     setGameState,
     setCountdownTimer,
     setCrashPoint,
@@ -62,5 +94,6 @@ export const useGameState = () => {
     startCountdown,
     startPlaying,
     handleCrash,
+    resetRound,
   };
 };
