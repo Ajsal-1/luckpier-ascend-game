@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -6,10 +7,12 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
 import { Loader2 } from 'lucide-react';
+
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
 export default function AuthModal({
   isOpen,
   onClose
@@ -18,11 +21,13 @@ export default function AuthModal({
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'login' | 'signup'>('login');
+  
   const {
     signIn,
     signUp,
     signInWithOtp
   } = useAuth();
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -39,18 +44,7 @@ export default function AuthModal({
       setIsLoading(false);
     }
   };
-  const handleMagicLink = async () => {
-    if (!email) return;
-    setIsLoading(true);
-    try {
-      await signInWithOtp(email);
-      onClose();
-    } catch (error) {
-      console.error('Magic link error:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+
   return <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
       <DialogContent className="sm:max-w-[425px] bg-[#131c29] border-gray-800/40">
         <DialogHeader>
@@ -82,9 +76,6 @@ export default function AuthModal({
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Login
               </Button>
-              <div className="text-center">
-                <Button variant="link" size="sm" type="button" onClick={handleMagicLink} disabled={isLoading || !email} className="text-gray-950 bg-slate-900 hover:bg-slate-800"></Button>
-              </div>
             </form>
           </TabsContent>
           
