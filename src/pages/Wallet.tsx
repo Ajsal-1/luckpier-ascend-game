@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/use-auth';
@@ -95,14 +94,12 @@ const Wallet = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Button 
-              className="w-full justify-between"
-              as={Link}
-              to="/deposit"
-            >
-              <span>Deposit Funds</span>
-              <ArrowUpRight className="h-4 w-4" />
-            </Button>
+            <Link to="/deposit" className="w-full">
+              <Button className="w-full justify-between">
+                <span>Deposit Funds</span>
+                <ArrowUpRight className="h-4 w-4" />
+              </Button>
+            </Link>
             <Button className="w-full justify-between" variant="outline" disabled>
               <span>Withdraw Funds</span>
               <ArrowUpRight className="h-4 w-4" />
