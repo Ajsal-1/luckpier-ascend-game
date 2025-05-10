@@ -242,35 +242,39 @@ const DepositPage: React.FC = () => {
                     </div>
                   </div>
                   
-                  <FormField control={form.control} name="amount" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-gray-200 font-medium">Amount in USD</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-600 font-bold">$</span>
-                          <Input 
-                            type="number" 
-                            placeholder="100" 
-                            className="pl-8 py-6 bg-white text-gray-800 border-blue-500/30 focus-visible:ring-blue-500/50 text-xl font-semibold tracking-wide rounded-lg shadow-inner" 
-                            {...field} 
-                          />
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-2">
-                            {[50, 100, 500].map((amount) => (
-                              <button 
-                                key={amount}
-                                type="button"
-                                className="text-xs px-2 py-1 bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 rounded border border-blue-500/30"
-                                onClick={() => form.setValue('amount', amount)}
-                              >
-                                ${amount}
-                              </button>
-                            ))}
+                  <FormField
+                    control={form.control}
+                    name="amount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-gray-200 font-medium">Amount in USD</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-600 font-bold">$</span>
+                            <Input 
+                              type="number" 
+                              placeholder="100" 
+                              className="pl-8 py-6 bg-white text-gray-800 border-blue-500/30 focus-visible:ring-blue-500/50 text-xl font-semibold tracking-wide rounded-lg shadow-inner" 
+                              {...field} 
+                            />
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-2">
+                              {[50, 100, 500].map((amount) => (
+                                <button 
+                                  key={amount}
+                                  type="button"
+                                  className="text-xs px-2 py-1 bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 rounded border border-blue-500/30"
+                                  onClick={() => form.setValue('amount', amount)}
+                                >
+                                  ${amount}
+                                </button>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      </FormControl>
-                      <FormMessage className="text-red-400" />
-                    </FormItem>
-                  ))} 
+                        </FormControl>
+                        <FormMessage className="text-red-400" />
+                      </FormItem>
+                    )}
+                  /> 
                   
                   <div className="pt-2">
                     <Button 
