@@ -43,7 +43,7 @@ serve(async (req) => {
     const amount = parseFloat(body.price_amount);
     const orderId = body.order_id || '';
     
-    console.log(`Processing payment ${paymentId} with status ${paymentStatus} for amount ${amount}`);
+    console.log(`Processing payment ${paymentId} with status ${paymentStatus} for order ${orderId} and amount ${amount}`);
     
     // Only process completed payments
     if (paymentStatus !== "finished") {
@@ -54,14 +54,30 @@ serve(async (req) => {
       );
     }
     
-    // Find matching deposit
-    const { data: deposits, error: fetchError } = await supabase
-      .from("pending_deposits")
-      .select("*")
-      .eq("amount", amount)
-      .eq("status", "pending")
-      .order("created_at", { ascending: false })
-      .limit(1);
+    // Find matching deposit by order_id if available
+    let deposits;
+    let fetchError;
+    
+    if (orderId) {
+      ({ data: deposits, error: fetchError } = await supabase
+        .from("pending_deposits")
+        .select("*")
+        .eq("order_id", orderId)
+        .eq("status", "pending")
+        .limit(1));
+    }
+    
+    // If no deposits found by order_id, fall back to amount matching
+    if (!deposits || deposits.length === 0) {
+      console.log("No deposit found by order_id, falling back to amount matching");
+      ({ data: deposits, error: fetchError } = await supabase
+        .from("pending_deposits")
+        .select("*")
+        .eq("amount", amount)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+        .limit(1));
+    }
       
     if (fetchError) {
       console.error("Error fetching deposits:", fetchError);

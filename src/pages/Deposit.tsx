@@ -30,6 +30,7 @@ const DepositPage: React.FC = () => {
   const [pendingDeposits, setPendingDeposits] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingDeposits, setIsLoadingDeposits] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Initialize form
   const form = useForm<DepositFormValues>({
@@ -81,6 +82,7 @@ const DepositPage: React.FC = () => {
   const onSubmit = async (values: DepositFormValues) => {
     try {
       setIsLoading(true);
+      setErrorMessage(null);
       
       if (!isAuthenticated || !user) {
         toast.error('You must be logged in to make a deposit');
@@ -96,6 +98,7 @@ const DepositPage: React.FC = () => {
         
       if (profileError) {
         console.error('Error fetching profile:', profileError);
+        setErrorMessage('Could not fetch your profile information');
         toast.error('Could not fetch your profile information');
         return;
       }
@@ -114,7 +117,8 @@ const DepositPage: React.FC = () => {
       
       if (error) {
         console.error('Error saving deposit:', error);
-        toast.error('Failed to initiate deposit: ' + error.message);
+        setErrorMessage(`Failed to initiate deposit: ${error.message}`);
+        toast.error(`Failed to initiate deposit: ${error.message}`);
         return;
       }
       
@@ -129,8 +133,9 @@ const DepositPage: React.FC = () => {
         window.location.href = `https://nowpayments.io/pos-terminal/luckpier?pay_amount=${values.amount}&order_id=${orderId}`;
       }, 1500);
       
-    } catch (err) {
+    } catch (err: any) {
       console.error('Deposit error:', err);
+      setErrorMessage(`An unexpected error occurred: ${err.message || 'Unknown error'}`);
       toast.error('An unexpected error occurred');
     } finally {
       setIsLoading(false);
@@ -228,6 +233,13 @@ const DepositPage: React.FC = () => {
             </CardHeader>
             
             <CardContent className="pb-6 relative z-10">
+              {errorMessage && (
+                <div className="bg-red-900/30 border border-red-500/30 px-4 py-3 rounded-lg mb-4 text-red-300 flex items-start">
+                  <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
+                  <p>{errorMessage}</p>
+                </div>
+              )}
+              
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
                   <div className="bg-blue-900/20 px-5 py-4 rounded-lg border border-blue-500/20 mb-5 backdrop-blur-md">
