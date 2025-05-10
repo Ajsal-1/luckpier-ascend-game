@@ -126,7 +126,11 @@ const Wallet = () => {
                 <ArrowUpRight className="h-4 w-4" />
               </Button>
             </Link>
-            <Button className="w-full justify-between py-6" variant="outline" disabled>
+            <Button 
+              className="w-full justify-between py-6 bg-white/10 text-white border border-white/20 hover:bg-white/20 transition-all" 
+              variant="outline" 
+              disabled
+            >
               <span>Withdraw Funds</span>
               <ArrowUpRight className="h-4 w-4" />
             </Button>
