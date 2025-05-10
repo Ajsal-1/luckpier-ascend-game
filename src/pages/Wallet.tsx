@@ -1,15 +1,17 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowUpRight, Info, Loader2, RefreshCw, Wallet as WalletIcon, Clock } from 'lucide-react';
 import AuthModal from '@/components/auth/AuthModal';
+import WithdrawalModal from '@/components/wallet/WithdrawalModal';
 
 const Wallet = () => {
   const { isAuthenticated, wallet, refreshWalletBalance } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = React.useState(false);
+  const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = React.useState(false);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
 
   const handleRefreshBalance = async () => {
@@ -129,18 +131,29 @@ const Wallet = () => {
             <Button 
               className="w-full justify-between py-6 bg-white/10 text-white border border-white/20 hover:bg-white/20 transition-all" 
               variant="outline" 
-              disabled
+              onClick={() => setIsWithdrawalModalOpen(true)}
             >
               <span>Withdraw Funds</span>
               <ArrowUpRight className="h-4 w-4" />
             </Button>
           </CardContent>
-          <CardFooter className="flex items-center justify-center text-xs text-gray-400 bg-gray-800/20 rounded-b-lg py-3">
-            <Info className="h-3 w-3 mr-1" />
-            <span>Withdraw functionality coming soon</span>
+          <CardFooter className="flex items-center justify-center text-xs text-white bg-blue-900/20 rounded-b-lg py-3">
+            <Info className="h-3 w-3 mr-1 text-blue-400" />
+            <span>Withdrawal processed within 24 hours</span>
           </CardFooter>
         </Card>
       </div>
+      
+      <AuthModal 
+        isOpen={isAuthModalOpen} 
+        onClose={() => setIsAuthModalOpen(false)} 
+      />
+      
+      <WithdrawalModal
+        isOpen={isWithdrawalModalOpen}
+        onClose={() => setIsWithdrawalModalOpen(false)}
+        currentBalance={wallet.balance}
+      />
     </div>
   );
 };
