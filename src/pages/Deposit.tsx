@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -239,11 +238,11 @@ const DepositPage: React.FC = () => {
                       <FormLabel className="text-gray-200 font-medium">Amount in USD</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-400 font-bold">$</span>
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-600 font-bold">$</span>
                           <Input 
                             type="number" 
                             placeholder="100" 
-                            className="pl-8 py-6 bg-[#0d1420] border-blue-500/30 focus-visible:ring-blue-500/50 text-xl font-semibold tracking-wide rounded-lg shadow-inner" 
+                            className="pl-8 py-6 bg-white text-gray-800 border-blue-500/30 focus-visible:ring-blue-500/50 text-xl font-semibold tracking-wide rounded-lg shadow-inner" 
                             {...field} 
                           />
                           <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-2">
