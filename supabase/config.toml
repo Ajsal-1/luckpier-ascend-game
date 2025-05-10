@@ -29,3 +29,4 @@ enabled = true
 [functions]
 [functions.handle-ipn]
 verify_jwt = false
+

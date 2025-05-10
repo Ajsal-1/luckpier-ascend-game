@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -99,12 +100,16 @@ const DepositPage: React.FC = () => {
         return;
       }
       
+      // Generate order ID
+      const orderId = `LP-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      
       // Save to pending_deposits table
       const { error } = await supabase.from('pending_deposits').insert({
         username: profile?.username || user.email,
         amount: values.amount,
         user_id: user.id,
-        status: 'pending'
+        status: 'pending',
+        order_id: orderId
       });
       
       if (error) {
@@ -118,8 +123,8 @@ const DepositPage: React.FC = () => {
       // Refresh the deposits list
       fetchPendingDeposits();
 
-      // Redirect to payment page
-      window.location.href = `https://nowpayments.io/pos-terminal/luckpier?pay_amount=${values.amount}`;
+      // Redirect to payment page with order ID
+      window.location.href = `https://nowpayments.io/pos-terminal/luckpier?pay_amount=${values.amount}&order_id=${orderId}`;
     } catch (err) {
       console.error('Deposit error:', err);
       toast.error('An unexpected error occurred');
@@ -286,7 +291,7 @@ const DepositPage: React.FC = () => {
             <CardFooter className="flex flex-col text-xs text-gray-400 bg-blue-900/20 px-6 py-4 border-t border-blue-500/20 relative z-10">
               <div className="flex items-center justify-center gap-2">
                 <DollarSign className="h-3 w-3 text-blue-400" />
-                <p>Secure payments processed by NowPayments</p>
+                <p>Secure payments processed by NOW Payments</p>
               </div>
             </CardFooter>
           </Card>

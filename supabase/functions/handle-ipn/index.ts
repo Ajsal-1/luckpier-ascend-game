@@ -18,7 +18,7 @@ serve(async (req) => {
     // Get environment variables
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-    const IPN_KEY = Deno.env.get('IPN_KEY') || '';
+    const IPN_KEY = Deno.env.get('NOW_PAYMENTS_IPN_KEY') || '';
     
     // Initialize Supabase client
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -27,23 +27,29 @@ serve(async (req) => {
     const body = await req.json();
     console.log("Received IPN payload:", JSON.stringify(body, null, 2));
     
-    // Verify IPN key
-    if (body.ipn_key !== IPN_KEY) {
-      console.error("Invalid IPN key");
+    // Verify IPN authenticity with NOW Payments IPN key
+    const authHeader = req.headers.get('x-nowpayments-sig');
+    if (!authHeader || authHeader !== IPN_KEY) {
+      console.error("Invalid IPN authentication");
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    const amount = parseFloat(body.amount);
-    const pay_status = body.payment_status;
+    // Extract payment details
+    const paymentId = body.payment_id;
+    const paymentStatus = body.payment_status;
+    const amount = parseFloat(body.price_amount);
+    const orderId = body.order_id || '';
     
-    // Only process confirmed payments
-    if (pay_status !== "confirmed") {
-      console.log(`Payment not confirmed. Status: ${pay_status}`);
+    console.log(`Processing payment ${paymentId} with status ${paymentStatus} for amount ${amount}`);
+    
+    // Only process completed payments
+    if (paymentStatus !== "finished") {
+      console.log(`Payment ${paymentId} not yet finished. Status: ${paymentStatus}`);
       return new Response(
-        JSON.stringify({ message: "Payment not confirmed" }),
+        JSON.stringify({ message: "Payment not yet finished" }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -109,7 +115,10 @@ serve(async (req) => {
     // Update deposit status
     const { error: updateError } = await supabase
       .from("pending_deposits")
-      .update({ status: "confirmed" })
+      .update({ 
+        status: "confirmed",
+        payment_id: paymentId
+      })
       .eq("id", deposit.id);
       
     if (updateError) {
