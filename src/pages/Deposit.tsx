@@ -114,7 +114,7 @@ const DepositPage: React.FC = () => {
       
       if (error) {
         console.error('Error saving deposit:', error);
-        toast.error('Failed to initiate deposit. Please try again.');
+        toast.error('Failed to initiate deposit: ' + error.message);
         return;
       }
       
@@ -123,8 +123,12 @@ const DepositPage: React.FC = () => {
       // Refresh the deposits list
       fetchPendingDeposits();
 
-      // Redirect to payment page with order ID
-      window.location.href = `https://nowpayments.io/pos-terminal/luckpier?pay_amount=${values.amount}&order_id=${orderId}`;
+      // Short delay to ensure toast is seen before redirecting
+      setTimeout(() => {
+        // Redirect to payment page with order ID
+        window.location.href = `https://nowpayments.io/pos-terminal/luckpier?pay_amount=${values.amount}&order_id=${orderId}`;
+      }, 1500);
+      
     } catch (err) {
       console.error('Deposit error:', err);
       toast.error('An unexpected error occurred');
@@ -266,19 +270,19 @@ const DepositPage: React.FC = () => {
                       </FormControl>
                       <FormMessage className="text-red-400" />
                     </FormItem>
-                  )} />
+                  ))} 
                   
                   <div className="pt-2">
                     <Button 
                       type="submit" 
-                      className="w-full py-7 text-lg bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:brightness-110 border-none transition-all duration-300 shadow-lg shadow-blue-900/30 hover:shadow-blue-900/50 rounded-lg font-medium" 
+                      className="w-full py-7 text-lg bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:brightness-110 border-none transition-all duration-300 shadow-lg shadow-blue-900/30 hover:shadow-blue-900/50 rounded-lg font-medium"
                       disabled={isLoading || form.formState.isSubmitting}
                     >
                       {isLoading ? (
-                        <>
+                        <div className="flex items-center justify-center">
                           <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                           Processing...
-                        </>
+                        </div>
                       ) : (
                         <>Continue to Payment</>
                       )}
