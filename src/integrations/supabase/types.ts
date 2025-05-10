@@ -98,6 +98,33 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_deposits: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          status: string
+          user_id: string | null
+          username: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          status?: string
+          user_id?: string | null
+          username: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          status?: string
+          user_id?: string | null
+          username?: string
+        }
+        Relationships: []
+      }
       player_bets: {
         Row: {
           bet_amount: number

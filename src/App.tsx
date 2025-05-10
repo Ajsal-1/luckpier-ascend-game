@@ -8,6 +8,7 @@ import Layout from "./components/layout/Layout";
 import Index from "./pages/Index";
 import MyBets from "./pages/MyBets";
 import Wallet from "./pages/Wallet";
+import Deposit from "./pages/Deposit";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import { AuthProvider } from "./hooks/use-auth";
@@ -27,6 +28,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/my-bets" element={<MyBets />} />
               <Route path="/wallet" element={<Wallet />} />
+              <Route path="/deposit" element={<Deposit />} />
               <Route path="/settings" element={<Settings />} />
             </Route>
             <Route path="*" element={<NotFound />} />
