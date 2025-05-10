@@ -4,31 +4,28 @@ project_id = "judvbdveeeggoztaryub"
 [api]
 enabled = true
 port = 54321
-schemas = ["public", "storage", "graphql_public"]
+schemas = ["public", "storage"]
 
 [db]
 port = 54322
 
-[realtime]
-enabled = true
-
 [studio]
 port = 54323
-enabled = true
 
 [inbucket]
 port = 54324
-enabled = true
-
-[storage]
-enabled = true
 
 [auth]
 enabled = true
-site_url = "http://localhost:3000"
+port = 54325
 
-[functions]
+[storage]
+enabled = true
+port = 54328
+
+[realtime]
 enabled = true
 
-[functions.crash-game-engine]
+[functions]
+[functions.handle-ipn]
 verify_jwt = false

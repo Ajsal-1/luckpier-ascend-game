@@ -1,23 +1,124 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowUpRight, Info, Loader2, RefreshCw, Wallet as WalletIcon, Clock } from 'lucide-react';
+import { ArrowUpRight, Info, Loader2, RefreshCw, Wallet as WalletIcon, Clock, ChevronRight, Calendar, CircleDollarSign } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import AuthModal from '@/components/auth/AuthModal';
 import WithdrawalModal from '@/components/wallet/WithdrawalModal';
+import { supabase } from '@/integrations/supabase/client';
 
 const Wallet = () => {
-  const { isAuthenticated, wallet, refreshWalletBalance } = useAuth();
-  const [isAuthModalOpen, setIsAuthModalOpen] = React.useState(false);
-  const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = React.useState(false);
-  const [isRefreshing, setIsRefreshing] = React.useState(false);
+  const { isAuthenticated, wallet, refreshWalletBalance, user } = useAuth();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [pendingDeposits, setPendingDeposits] = useState<any[]>([]);
+  const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
+  const [transactionDetails, setTransactionDetails] = useState<any>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      fetchTransactions();
+      fetchPendingDeposits();
+      
+      // Set up auto refresh every 30 seconds
+      const interval = setInterval(() => {
+        refreshWalletBalance();
+        fetchTransactions();
+        fetchPendingDeposits();
+      }, 30000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated, user]);
 
   const handleRefreshBalance = async () => {
     setIsRefreshing(true);
     await refreshWalletBalance();
+    await fetchTransactions();
+    await fetchPendingDeposits();
     setIsRefreshing(false);
+  };
+
+  const fetchTransactions = async () => {
+    if (!user) return;
+    
+    setIsLoadingTransactions(true);
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+        
+      if (error) throw error;
+      
+      setTransactions(data || []);
+    } catch (err) {
+      console.error('Error fetching transactions:', err);
+    } finally {
+      setIsLoadingTransactions(false);
+    }
+  };
+
+  const fetchPendingDeposits = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('pending_deposits')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      
+      setPendingDeposits(data || []);
+    } catch (err) {
+      console.error('Error fetching pending deposits:', err);
+    }
+  };
+
+  const viewTransactionDetails = (transaction: any) => {
+    setTransactionDetails(transaction);
+    setIsDetailsOpen(true);
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString();
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'text-green-400';
+      case 'pending':
+        return 'text-yellow-400';
+      case 'failed':
+        return 'text-red-400';
+      default:
+        return 'text-gray-400';
+    }
+  };
+
+  const getTransactionIcon = (type: string) => {
+    switch (type) {
+      case 'deposit':
+        return <ArrowUpRight className="h-4 w-4 text-green-400" />;
+      case 'withdrawal':
+        return <ArrowUpRight className="h-4 w-4 rotate-180 text-red-400" />;
+      default:
+        return <CircleDollarSign className="h-4 w-4 text-blue-400" />;
+    }
   };
 
   if (!isAuthenticated) {
@@ -95,6 +196,16 @@ const Wallet = () => {
                 {wallet.loading ? '...' : wallet.balance.toFixed(2)}
               </div>
               <div className="text-xs text-gray-400 mt-2">Last updated: Just now</div>
+              
+              {pendingDeposits.length > 0 && (
+                <div className="mt-4 px-3 py-2 bg-yellow-500/20 border border-yellow-500/30 rounded-lg">
+                  <p className="text-xs text-yellow-300 flex items-center">
+                    <Clock className="h-3 w-3 mr-1" />
+                    You have {pendingDeposits.length} pending deposit{pendingDeposits.length > 1 ? 's' : ''}. 
+                    The balance will update automatically once confirmed.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="mb-6">
@@ -104,11 +215,57 @@ const Wallet = () => {
                   Transaction History
                 </h3>
               </div>
-              <div className="bg-gray-900/50 rounded-lg p-6 border border-gray-800/40">
-                <div className="text-center py-6">
-                  <p className="text-gray-400 mb-2">Transaction history will be available soon</p>
-                  <p className="text-xs text-gray-500">We're working on this feature</p>
-                </div>
+              <div className="bg-[#0d1420] rounded-lg border border-gray-800/40">
+                {isLoadingTransactions ? (
+                  <div className="flex justify-center items-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+                  </div>
+                ) : transactions.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="hover:bg-blue-900/10 border-gray-800">
+                          <TableHead className="text-gray-400">Type</TableHead>
+                          <TableHead className="text-gray-400">Amount</TableHead>
+                          <TableHead className="text-gray-400">Status</TableHead>
+                          <TableHead className="text-gray-400">Date</TableHead>
+                          <TableHead className="text-gray-400"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {transactions.map((transaction) => (
+                          <TableRow 
+                            key={transaction.id} 
+                            className="hover:bg-blue-900/10 border-gray-800 cursor-pointer"
+                            onClick={() => viewTransactionDetails(transaction)}
+                          >
+                            <TableCell className="font-medium flex items-center gap-2">
+                              {getTransactionIcon(transaction.type)}
+                              <span className="capitalize">{transaction.type}</span>
+                            </TableCell>
+                            <TableCell className={transaction.type === 'deposit' ? 'text-green-400' : 'text-red-400'}>
+                              {transaction.type === 'deposit' ? '+' : '-'}${transaction.amount}
+                            </TableCell>
+                            <TableCell className={getStatusColor(transaction.status)}>
+                              <span className="capitalize">{transaction.status}</span>
+                            </TableCell>
+                            <TableCell className="text-gray-400 text-sm">
+                              {formatDate(transaction.created_at)}
+                            </TableCell>
+                            <TableCell>
+                              <ChevronRight className="h-4 w-4 text-gray-500" />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-gray-400 mb-2">No transactions found</p>
+                    <p className="text-xs text-gray-500">Your transaction history will appear here</p>
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>
@@ -143,6 +300,46 @@ const Wallet = () => {
           </CardFooter>
         </Card>
       </div>
+      
+      {/* Transaction Details Dialog */}
+      <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+        <DialogContent className="bg-[#131c29] border-gray-800 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl">Transaction Details</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Details for transaction {transactionDetails?.id?.slice(0, 8)}
+            </DialogDescription>
+          </DialogHeader>
+          {transactionDetails && (
+            <div className="space-y-4">
+              <div className="flex justify-between py-2 border-b border-gray-800">
+                <span className="text-gray-400">Transaction Type</span>
+                <span className="font-medium capitalize">{transactionDetails.type}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-gray-800">
+                <span className="text-gray-400">Amount</span>
+                <span className={transactionDetails.type === 'deposit' ? 'text-green-400 font-medium' : 'text-red-400 font-medium'}>
+                  {transactionDetails.type === 'deposit' ? '+' : '-'}${transactionDetails.amount}
+                </span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-gray-800">
+                <span className="text-gray-400">Status</span>
+                <span className={getStatusColor(transactionDetails.status)}>
+                  {transactionDetails.status}
+                </span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-gray-800">
+                <span className="text-gray-400">Date & Time</span>
+                <span className="text-sm">{formatDate(transactionDetails.created_at)}</span>
+              </div>
+              <div className="flex justify-between py-2">
+                <span className="text-gray-400">Transaction ID</span>
+                <span className="text-xs text-gray-300 font-mono">{transactionDetails.id}</span>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
       
       <AuthModal 
         isOpen={isAuthModalOpen} 
