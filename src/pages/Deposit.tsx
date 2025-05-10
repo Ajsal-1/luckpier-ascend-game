@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
-import { DollarSign } from 'lucide-react';
+import { DollarSign, ArrowLeft, CreditCard } from 'lucide-react';
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -70,78 +70,102 @@ const DepositPage: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <Card className="bg-[#131c29] border-gray-800/40 max-w-lg mx-auto">
-        <CardHeader>
-          <div className="flex items-center justify-center mb-4">
-            <div className="bg-blue-500/20 p-3 rounded-full">
-              <DollarSign className="h-6 w-6 text-blue-400" />
-            </div>
-          </div>
-          <CardTitle className="text-xl font-bold text-center">Deposit to LuckPier</CardTitle>
-          <CardDescription className="text-center">
-            Enter your LuckPier username and the amount you want to deposit.
-            After confirming, you'll be redirected to the payment page.
-          </CardDescription>
-        </CardHeader>
+    <div className="container mx-auto py-12 px-4 min-h-[80vh] flex items-center justify-center">
+      <div className="w-full max-w-md">
+        <Button 
+          variant="ghost" 
+          onClick={() => navigate('/wallet')}
+          className="mb-6 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 -ml-2"
+        >
+          <ArrowLeft className="mr-1 h-4 w-4" />
+          Back to Wallet
+        </Button>
         
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="username"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Username</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="Your LuckPier username" 
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="amount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Amount in USD</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+        <Card className="bg-gradient-to-br from-[#131c29] to-[#192336] border-blue-500/20 shadow-xl overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+          
+          <CardHeader className="pb-6">
+            <div className="flex items-center justify-center mb-6">
+              <div className="bg-gradient-to-tr from-blue-600/30 to-purple-600/30 p-4 rounded-full shadow-inner border border-blue-500/20">
+                <CreditCard className="h-8 w-8 text-blue-400" />
+              </div>
+            </div>
+            <CardTitle className="text-2xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
+              Deposit Funds
+            </CardTitle>
+            <CardDescription className="text-center text-gray-300 mt-2">
+              Enter your details below to add funds to your LuckPier account
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent className="pb-6">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+                <FormField
+                  control={form.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-gray-200">Username</FormLabel>
+                      <FormControl>
                         <Input 
-                          type="number" 
-                          placeholder="100" 
-                          className="pl-7" 
+                          placeholder="Your LuckPier username" 
+                          className="bg-[#0d1420] border-blue-500/20 focus:border-blue-400/40 py-6"
                           {...field} 
                         />
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <Button 
-                type="submit" 
-                className="w-full mt-4"
-                disabled={form.formState.isSubmitting}
-              >
-                {form.formState.isSubmitting ? 'Processing...' : 'Continue to Payment'}
-              </Button>
-            </form>
-          </Form>
-        </CardContent>
-        
-        <CardFooter className="flex flex-col text-xs text-gray-400">
-          <p>Once payment is received, your balance will update automatically.</p>
-        </CardFooter>
-      </Card>
+                      </FormControl>
+                      <FormMessage className="text-red-400" />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="amount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-gray-200">Amount in USD</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400">$</span>
+                          <Input 
+                            type="number" 
+                            placeholder="100" 
+                            className="pl-7 bg-[#0d1420] border-blue-500/20 focus:border-blue-400/40 py-6" 
+                            {...field} 
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage className="text-red-400" />
+                    </FormItem>
+                  )}
+                />
+                
+                <div className="pt-2">
+                  <Button 
+                    type="submit" 
+                    className="w-full py-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 border-none transition-all duration-300 shadow-lg hover:shadow-blue-900/30"
+                    disabled={form.formState.isSubmitting}
+                  >
+                    {form.formState.isSubmitting ? (
+                      <>Processing...</>
+                    ) : (
+                      <>Continue to Payment</>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </CardContent>
+          
+          <CardFooter className="flex flex-col text-xs text-gray-400 bg-blue-900/10 px-6 py-4 border-t border-blue-500/10">
+            <div className="flex items-center justify-center gap-2">
+              <DollarSign className="h-3 w-3 text-blue-400" />
+              <p>Secure payments processed by NowPayments</p>
+            </div>
+          </CardFooter>
+        </Card>
+      </div>
     </div>
   );
 };
