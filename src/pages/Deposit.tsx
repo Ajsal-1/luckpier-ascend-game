@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -6,7 +5,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
 import { DollarSign, ArrowLeft, CreditCard } from 'lucide-react';
-
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -16,25 +14,30 @@ import { supabase } from '@/integrations/supabase/client';
 
 // Define form validation schema
 const depositFormSchema = z.object({
-  username: z.string().min(3, { message: 'Username must be at least 3 characters.' }),
-  amount: z.coerce.number()
-    .min(10, { message: 'Minimum deposit is $10.' })
-    .max(10000, { message: 'Maximum deposit is $10,000.' })
+  username: z.string().min(3, {
+    message: 'Username must be at least 3 characters.'
+  }),
+  amount: z.coerce.number().min(10, {
+    message: 'Minimum deposit is $10.'
+  }).max(10000, {
+    message: 'Maximum deposit is $10,000.'
+  })
 });
-
 type DepositFormValues = z.infer<typeof depositFormSchema>;
-
 const DepositPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
-  
+  const {
+    user,
+    isAuthenticated
+  } = useAuth();
+
   // Initialize form
   const form = useForm<DepositFormValues>({
     resolver: zodResolver(depositFormSchema),
     defaultValues: {
       username: '',
-      amount: 100,
-    },
+      amount: 100
+    }
   });
 
   // Handle form submission
@@ -44,39 +47,32 @@ const DepositPage: React.FC = () => {
         toast.error('You must be logged in to make a deposit');
         return;
       }
-      
+
       // Save to pending_deposits table
-      const { error } = await supabase.from('pending_deposits').insert({
+      const {
+        error
+      } = await supabase.from('pending_deposits').insert({
         username: values.username,
         amount: values.amount,
         user_id: user.id
       });
-      
       if (error) {
         console.error('Error saving deposit:', error);
         toast.error('Failed to initiate deposit. Please try again.');
         return;
       }
-      
       toast.success('Redirecting to payment page...');
-      
+
       // Redirect to payment page
       window.location.href = 'https://nowpayments.io/pos-terminal/luckpier';
-      
     } catch (err) {
       console.error('Deposit error:', err);
       toast.error('An unexpected error occurred');
     }
   };
-
-  return (
-    <div className="container mx-auto py-12 px-4 min-h-[80vh] flex items-center justify-center">
+  return <div className="container mx-auto py-12 px-4 min-h-[80vh] flex items-center justify-center">
       <div className="w-full max-w-md">
-        <Button 
-          variant="ghost" 
-          onClick={() => navigate('/wallet')}
-          className="mb-6 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 -ml-2"
-        >
+        <Button variant="ghost" onClick={() => navigate('/wallet')} className="mb-6 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 -ml-2">
           <ArrowLeft className="mr-1 h-4 w-4" />
           Back to Wallet
         </Button>
@@ -101,57 +97,32 @@ const DepositPage: React.FC = () => {
           <CardContent className="pb-6">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-                <FormField
-                  control={form.control}
-                  name="username"
-                  render={({ field }) => (
-                    <FormItem>
+                <FormField control={form.control} name="username" render={({
+                field
+              }) => <FormItem>
                       <FormLabel className="text-gray-200">Username</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="Your LuckPier username" 
-                          className="bg-[#0d1420] border-blue-500/20 focus:border-blue-400/40 py-6"
-                          {...field} 
-                        />
+                        <Input placeholder="Your LuckPier username" className="bg-[#0d1420] border-blue-500/20 focus:border-blue-400/40 py-6" {...field} />
                       </FormControl>
                       <FormMessage className="text-red-400" />
-                    </FormItem>
-                  )}
-                />
+                    </FormItem>} />
                 
-                <FormField
-                  control={form.control}
-                  name="amount"
-                  render={({ field }) => (
-                    <FormItem>
+                <FormField control={form.control} name="amount" render={({
+                field
+              }) => <FormItem>
                       <FormLabel className="text-gray-200">Amount in USD</FormLabel>
                       <FormControl>
                         <div className="relative">
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400">$</span>
-                          <Input 
-                            type="number" 
-                            placeholder="100" 
-                            className="pl-7 bg-[#0d1420] border-blue-500/20 focus:border-blue-400/40 py-6" 
-                            {...field} 
-                          />
+                          <Input type="number" placeholder="100" className="pl-7 border-blue-500/20 focus:border-blue-400/40 py-6 bg-slate-50" />
                         </div>
                       </FormControl>
                       <FormMessage className="text-red-400" />
-                    </FormItem>
-                  )}
-                />
+                    </FormItem>} />
                 
                 <div className="pt-2">
-                  <Button 
-                    type="submit" 
-                    className="w-full py-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 border-none transition-all duration-300 shadow-lg hover:shadow-blue-900/30"
-                    disabled={form.formState.isSubmitting}
-                  >
-                    {form.formState.isSubmitting ? (
-                      <>Processing...</>
-                    ) : (
-                      <>Continue to Payment</>
-                    )}
+                  <Button type="submit" className="w-full py-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 border-none transition-all duration-300 shadow-lg hover:shadow-blue-900/30" disabled={form.formState.isSubmitting}>
+                    {form.formState.isSubmitting ? <>Processing...</> : <>Continue to Payment</>}
                   </Button>
                 </div>
               </form>
@@ -166,8 +137,6 @@ const DepositPage: React.FC = () => {
           </CardFooter>
         </Card>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default DepositPage;
