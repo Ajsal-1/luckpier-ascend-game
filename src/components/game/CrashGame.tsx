@@ -257,18 +257,25 @@ const CrashGame: React.FC = () => {
       // Calculate winnings
       const winnings = bet.bet_amount * multiplier;
       
-      // Update user balance
-      const { error: balanceError } = await supabase
+      // Update user balance - HERE'S THE FIX: Properly handle the RPC call
+      const { data, error: balanceError } = await supabase.rpc(
+        'get_new_balance', 
+        { 
+          user_id: userId, 
+          amount_to_add: winnings 
+        }
+      );
+      
+      // Use the returned value as a number for the update
+      if (balanceError) throw new Error('Failed to calculate new balance');
+      
+      // Now update the profile with the returned balance value
+      const { error: updateBalanceError } = await supabase
         .from('profiles')
-        .update({ 
-          balance: supabase.rpc('get_new_balance', { 
-            user_id: userId, 
-            amount_to_add: winnings 
-          }) 
-        })
+        .update({ balance: data })
         .eq('id', userId);
         
-      if (balanceError) throw new Error('Failed to update balance');
+      if (updateBalanceError) throw new Error('Failed to update balance');
       
       return winnings;
     } catch (error: any) {
