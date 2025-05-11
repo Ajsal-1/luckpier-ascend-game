@@ -32,24 +32,24 @@ const CrashGame: React.FC = () => {
   } = useMultiplayerCrashGame();
 
   // Update wallet balance whenever player bet or win changes
-  // Also refresh periodically to ensure it's always up to date
+  // Refresh less frequently to reduce API calls
   useEffect(() => {
-    // Only refresh when authenticated
+    // Only refresh when authenticated and after significant game events
     if (isAuthenticated) {
       refreshWalletBalance();
     }
   }, [playerBet, playerWin, isAuthenticated, refreshWalletBalance]);
   
-  // Set up a periodic refresh of the wallet balance
+  // Set up a less frequent periodic refresh of the wallet balance
   useEffect(() => {
     if (isAuthenticated) {
       // Initial refresh
       refreshWalletBalance();
       
-      // Set up interval for periodic refreshes
+      // Set up interval for periodic refreshes - reduced from 5s to 15s
       const intervalId = setInterval(() => {
         refreshWalletBalance();
-      }, 5000); // Refresh every 5 seconds
+      }, 15000); // Refresh every 15 seconds instead of 5
       
       return () => clearInterval(intervalId);
     }

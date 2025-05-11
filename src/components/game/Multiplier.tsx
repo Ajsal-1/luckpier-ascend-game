@@ -32,7 +32,7 @@ const Multiplier: React.FC<MultiplierProps> = ({
         crashEffectActive={isCrashed} // Simplified - show effects whenever crashed
       />
 
-      {/* Countdown Display - Now with smoother countdown animation */}
+      {/* Countdown Display - Now directly using server-provided countdown */}
       <CountdownDisplay 
         gameState={gameState as GAME_STATE} 
         displayValue={currentMultiplier.toFixed(2) + "x"}
