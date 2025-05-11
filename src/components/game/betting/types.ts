@@ -8,4 +8,5 @@ export interface BettingPanelProps {
   remainingTime: number | null;
   balance?: number;
   isBetPlaced?: boolean;
+  gameState: any; // Added gameState to BettingPanelProps
 }

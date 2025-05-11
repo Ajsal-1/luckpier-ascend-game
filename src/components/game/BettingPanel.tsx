@@ -6,6 +6,7 @@ import GameActionButton from './betting/GameActionButton';
 import StatusMessage from './betting/StatusMessage';
 import BalanceDisplay from './betting/BalanceDisplay';
 import { BettingPanelProps } from './betting/types';
+import { GAME_STATE } from '@/hooks/game/types';
 
 const BettingPanel: React.FC<BettingPanelProps> = ({
   isPlaying,
@@ -16,6 +17,7 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
   remainingTime,
   balance = 1000.00,
   isBetPlaced = false,
+  gameState
 }) => {
   const [betAmount, setBetAmount] = useState("100.00");
   const [autoCashout, setAutoCashout] = useState<string>("2.00");
@@ -86,15 +88,20 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
     // If there's an input error, always disable
     if (inputError) return true;
     
-    // If countdown is active and greater than 0.1 (nearly finished), disable button
-    // This ensures we enable the button just as the countdown is about to complete
-    if (remainingTime !== null && remainingTime > 0.1) return true;
+    // IMPORTANT: Allow betting specifically during countdown (5s window)
+    // This is the key change - we enable betting ONLY during COUNTDOWN state
+    if (gameState === GAME_STATE.COUNTDOWN) {
+      return false; // Always enable during countdown
+    }
     
-    // If currently playing and no bet placed, disable placing bets
+    // If currently playing, disable placing bets
     if (isPlaying) return true;
     
-    // Otherwise enable
-    return false;
+    // If crashed, disable until next countdown
+    if (isCrashed) return true;
+    
+    // Default to disabled for safety
+    return true;
   };
 
   return (
@@ -131,6 +138,15 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
             onToggleAutoCashout={handleToggleAutoCashout}
             isDisabled={isPlaying || isBetPlaced}
           />
+          
+          {/* Betting Period Indicator - new! */}
+          {gameState === GAME_STATE.COUNTDOWN && (
+            <div className="bg-green-700/20 border border-green-600/30 rounded-md p-2 text-center">
+              <span className="text-green-400 text-sm font-medium">
+                Betting open for {remainingTime?.toFixed(1) || "5.0"}s
+              </span>
+            </div>
+          )}
           
           {/* Error and Status Messages */}
           <StatusMessage 

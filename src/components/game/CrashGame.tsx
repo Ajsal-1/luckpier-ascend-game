@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useMultiplayerCrashGame } from '@/hooks/game/useMultiplayerCrashGame';
 import { GAME_STATE } from '@/hooks/game/types';
@@ -36,7 +37,7 @@ const CrashGame: React.FC = () => {
     if (isAuthenticated && (playerBet !== null || playerWin !== null)) {
       refreshWalletBalance();
     }
-  }, [playerBet, playerWin, isAuthenticated]);
+  }, [playerBet, playerWin, isAuthenticated, refreshWalletBalance]);
   
   // Set up a less frequent periodic refresh of the wallet balance
   useEffect(() => {
@@ -51,12 +52,18 @@ const CrashGame: React.FC = () => {
     }, 15000); // Refresh every 15 seconds
     
     return () => clearInterval(intervalId);
-  }, [isAuthenticated]); // Only depend on authentication status
+  }, [isAuthenticated, refreshWalletBalance]); // Only depend on authentication status
 
   const onPlaceBet = async (amount: number, autoCashout?: number | null) => {
     if (!isAuthenticated) {
       toast.error("Please sign in to place bets", { position: 'top-center' });
       setIsAuthModalOpen(true);
+      return;
+    }
+    
+    // Check if we're in countdown period
+    if (gameState !== GAME_STATE.COUNTDOWN) {
+      toast.error("Betting is only allowed during countdown period", { position: 'top-center' });
       return;
     }
     
@@ -98,7 +105,7 @@ const CrashGame: React.FC = () => {
       case GAME_STATE.WAITING:
         return "Waiting for next round...";
       case GAME_STATE.COUNTDOWN:
-        return `Starting in ${countdownTimer?.toFixed(1) || "5.0"}s`;
+        return `Betting open! Starting in ${countdownTimer?.toFixed(1) || "5.0"}s`;
       case GAME_STATE.PLAYING:
         return "Game in progress";
       case GAME_STATE.CRASHED:
@@ -112,7 +119,7 @@ const CrashGame: React.FC = () => {
     <div className="w-full">
       {/* Game status indicator */}
       <div className="w-full flex justify-between items-center mb-2">
-        <div className="text-sm font-medium">
+        <div className={`text-sm font-medium ${gameState === GAME_STATE.COUNTDOWN ? 'text-green-400' : ''}`}>
           {getGameStateMessage()}
         </div>
         <div className="text-sm font-medium">
@@ -138,6 +145,7 @@ const CrashGame: React.FC = () => {
             remainingTime={countdownTimer}
             balance={wallet.balance}
             isBetPlaced={isBetPlaced}
+            gameState={gameState}
           />
         </div>
         

@@ -46,20 +46,28 @@ const GameActionButton: React.FC<GameActionButtonProps> = ({
       </button>
     );
   } else {
+    // Enhanced visual feedback during countdown period
+    const isCountdownActive = remainingTime !== null && remainingTime > 0;
+    const isNearlyFinished = remainingTime !== null && remainingTime <= 0.1;
+    
     return (
       <button 
         className={cn(
           "w-full py-3 text-base font-medium rounded-md transition-all",
           isDisabled ? 
             "bg-blue-600/50 text-white/70 cursor-not-allowed" : 
-            "bg-blue-600 hover:bg-blue-700 text-white"
+            isCountdownActive ? 
+              "bg-green-600 hover:bg-green-700 text-white font-bold" : 
+              "bg-blue-600 hover:bg-blue-700 text-white"
         )}
         onClick={onClick}
         disabled={isDisabled}
       >
-        {remainingTime !== null && remainingTime > 0
+        {isCountdownActive
           ? `Place Bet (${formatTime(remainingTime)}s)`
-          : "Place Bet"}
+          : isNearlyFinished
+            ? "Place Bet Now!"
+            : "Place Bet"}
       </button>
     );
   }
