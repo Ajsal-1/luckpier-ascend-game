@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import BetAmountInput from './betting/BetAmountInput';
 import AutoCashoutInput from './betting/AutoCashoutInput';
@@ -138,7 +139,7 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
           {/* Spacer */}
           <div className="flex-grow"></div>
           
-          {/* Action Buttons */}
+          {/* Action Buttons - Now passing isBetPlaced prop */}
           <div className="pt-2">
             <GameActionButton 
               isPlaying={isPlaying}
@@ -146,6 +147,7 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
               remainingTime={remainingTime}
               hasWon={hasWon}
               isCrashed={isCrashed}
+              isBetPlaced={isBetPlaced}
               onClick={isPlaying ? onCashout : handlePlaceBet}
             />
           </div>

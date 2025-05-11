@@ -9,6 +9,7 @@ interface GameActionButtonProps {
   hasWon: boolean;
   isCrashed: boolean;
   onClick: () => void;
+  isBetPlaced: boolean; // Add this prop to check if a bet is placed
 }
 
 const GameActionButton: React.FC<GameActionButtonProps> = ({
@@ -17,14 +18,18 @@ const GameActionButton: React.FC<GameActionButtonProps> = ({
   remainingTime,
   hasWon,
   isCrashed,
-  onClick
+  onClick,
+  isBetPlaced
 }) => {
   const formatTime = (seconds: number): string => {
     // Ensure timer doesn't show negative values
     return Math.max(0, seconds).toFixed(1);
   };
   
-  if (!isPlaying) {
+  // Show "Cash Out" button only when the game is playing AND a bet has been placed
+  const showCashOut = isPlaying && isBetPlaced;
+  
+  if (!showCashOut) {
     return (
       <button 
         className={cn(

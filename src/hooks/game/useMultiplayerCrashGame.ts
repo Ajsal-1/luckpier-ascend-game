@@ -27,6 +27,7 @@ export const useMultiplayerCrashGame = () => {
   const gameEngineErrorCount = useRef<number>(0);
   const lastCrashTime = useRef<number | null>(null);
   const postCrashCooldownTime = useRef<number>(6); // 6 seconds cooldown after crash
+  const lastMultiplierRef = useRef<number>(1); // Track the last multiplier to prevent decreases
 
   // Calculate multiplier based on start time
   const calculateCurrentMultiplier = useCallback((startTime: string): number => {
@@ -107,12 +108,18 @@ export const useMultiplayerCrashGame = () => {
   const updateMultiplier = useCallback(() => {
     if (currentRound && currentRound.status === 'running' && currentRound.start_time) {
       const newMultiplier = calculateCurrentMultiplier(currentRound.start_time);
-      setCurrentMultiplier(newMultiplier);
+      
+      // Only update the multiplier if it's higher than the current one
+      // This ensures the multiplier never decreases
+      if (newMultiplier > lastMultiplierRef.current) {
+        setCurrentMultiplier(newMultiplier);
+        lastMultiplierRef.current = newMultiplier;
+      }
       
       // Check if we've reached the crash point (client-side prediction)
-      if (crashPoint && newMultiplier >= crashPoint) {
+      if (crashPoint && lastMultiplierRef.current >= crashPoint) {
         if (gameState !== GAME_STATE.CRASHED) {
-          console.log(`Client detected crash at ${newMultiplier.toFixed(2)}x`);
+          console.log(`Client detected crash at ${lastMultiplierRef.current.toFixed(2)}x`);
           setGameState(GAME_STATE.CRASHED);
           setIsRoundActive(false);
           // Stop the animation
@@ -131,6 +138,9 @@ export const useMultiplayerCrashGame = () => {
   
   // Start the multiplier animation
   const startMultiplierAnimation = useCallback(() => {
+    // Reset the last multiplier to 1 when starting a new round
+    lastMultiplierRef.current = 1;
+    
     // Clean up any existing animation
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
@@ -246,7 +256,12 @@ export const useMultiplayerCrashGame = () => {
       // Update game state based on response
       if (data.status === 'playing') {
         setCurrentRound(data);
-        setCurrentMultiplier(data.current_multiplier);
+        
+        // Ensure multiplier never decreases
+        if (data.current_multiplier > lastMultiplierRef.current) {
+          setCurrentMultiplier(data.current_multiplier);
+          lastMultiplierRef.current = data.current_multiplier;
+        }
         
         // Ensure game state is PLAYING
         if (gameState !== GAME_STATE.PLAYING) {
@@ -324,6 +339,7 @@ export const useMultiplayerCrashGame = () => {
           setGameState(GAME_STATE.PLAYING);
           setIsRoundActive(true);
           setCurrentMultiplier(1);
+          lastMultiplierRef.current = 1; // Reset the last multiplier
           setCrashPoint(null);
           
           // Start the multiplier animation for all users
