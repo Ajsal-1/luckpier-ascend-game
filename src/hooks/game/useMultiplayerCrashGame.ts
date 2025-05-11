@@ -34,7 +34,7 @@ export const useMultiplayerCrashGame = () => {
   const lastCountdownUpdateRef = useRef<number | null>(null);
   const serverCountdownValueRef = useRef<number | null>(5);
 
-  // Calculate multiplier based on start time - now uses client-side animation for smoothness
+  // Calculate multiplier based on start time - only uses client-side animation for smoothness
   const calculateCurrentMultiplier = useCallback((timestamp: number): number => {
     // Only calculate if we have a start time
     if (!startTimeRef.current) return 1.0;
@@ -703,5 +703,6 @@ export const useMultiplayerCrashGame = () => {
     handlePlaceBet,
     handleCashout,
     updateGameHistory,
+    fetchGameHistory, // Added fetchGameHistory to the returned object
   };
 };

@@ -1,13 +1,12 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { HistoryItem, Player } from './types';
-import { generateRandomPlayers } from './gameUtils';
 import { supabase } from '@/integrations/supabase/client';
 
 export const useGameHistory = () => {
   // History and players state
   const [gameHistory, setGameHistory] = useState<HistoryItem[]>([]);
-  const [players, setPlayers] = useState<Player[]>(generateRandomPlayers(10));
+  const [players, setPlayers] = useState<Player[]>([]);
   const fetchingRef = useRef(false);
 
   // Fetch game history from Supabase
@@ -29,41 +28,26 @@ export const useGameHistory = () => {
       if (data && data.length > 0) {
         const historyItems: HistoryItem[] = data.map(round => ({
           id: round.id,
-          multiplier: parseFloat(round.crash_multiplier.toString()), // Convert to string first before parsing
+          multiplier: parseFloat(round.crash_multiplier.toString()), // Convert to number consistently
           timestamp: round.ended_at || new Date().toISOString()
         }));
         
         setGameHistory(historyItems);
-      } else if (gameHistory.length === 0) {
-        // Set some fallback history if none exists in database
-        const currentTime = new Date().toISOString();
-        setGameHistory([
-          { id: 'game-1', multiplier: 1.27, timestamp: currentTime },
-          { id: 'game-2', multiplier: 2.48, timestamp: currentTime },
-          { id: 'game-3', multiplier: 7.32, timestamp: currentTime },
-          { id: 'game-4', multiplier: 1.07, timestamp: currentTime },
-          { id: 'game-5', multiplier: 1.20, timestamp: currentTime },
-          { id: 'game-6', multiplier: 1.54, timestamp: currentTime },
-        ]);
+      } else {
+        // Reset history but don't set fallback data - only use real Supabase data
+        setGameHistory([]);
       }
     } catch (err) {
       console.error('Error fetching game history:', err);
     } finally {
       fetchingRef.current = false;
     }
-  }, [gameHistory.length]);
+  }, []);
 
-  // Update history when game crashes
+  // Update game history when a new round is completed
   const updateGameHistory = useCallback((multiplier: number) => {
-    const timestamp = new Date().toISOString();
-    
-    setGameHistory(prev => {
-      const newHistory = [
-        { id: `game-${Date.now()}`, multiplier, timestamp },
-        ...prev.slice(0, 19) // Keep only the 20 most recent games
-      ];
-      return newHistory;
-    });
+    // Don't create local history items anymore, just refetch from Supabase
+    fetchGameHistory();
     
     // Update players
     setPlayers(prev => 
@@ -74,14 +58,11 @@ export const useGameHistory = () => {
         return player;
       })
     );
-    
-    // Re-fetch history to sync with server
-    fetchGameHistory();
   }, [fetchGameHistory]);
 
-  // Generate new players for the next round
+  // Reset players state for the next round
   const resetPlayers = useCallback(() => {
-    setPlayers(generateRandomPlayers(Math.floor(Math.random() * 8) + 5));
+    setPlayers([]);
   }, []);
 
   return {

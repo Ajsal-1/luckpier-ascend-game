@@ -40,7 +40,7 @@ const GameHistory: React.FC<GameHistoryProps> = ({ history }) => {
         
         {history.length === 0 && (
           <div className="text-gray-500 w-full text-center py-2">
-            No game history yet
+            Loading game history...
           </div>
         )}
       </div>

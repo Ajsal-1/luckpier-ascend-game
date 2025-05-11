@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { useMultiplayerCrashGame } from '@/hooks/game/useMultiplayerCrashGame';
 import { GAME_STATE } from '@/hooks/game/types';
@@ -10,6 +9,7 @@ import HelpModal from '@/components/game/HelpModal';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
 import AuthModal from '@/components/auth/AuthModal';
+import { supabase } from '@/integrations/supabase/client';
 
 const CrashGame: React.FC = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
@@ -32,12 +32,35 @@ const CrashGame: React.FC = () => {
   } = useMultiplayerCrashGame();
 
   // Update wallet balance whenever significant events occur
-  // But only refresh once per event to avoid infinite loops
   useEffect(() => {
     if (isAuthenticated && (playerBet !== null || playerWin !== null)) {
       refreshWalletBalance();
     }
   }, [playerBet, playerWin, isAuthenticated, refreshWalletBalance]);
+  
+  // Add a realtime subscription for round updates
+  useEffect(() => {
+    // Subscribe to changes in rounds table to keep history updated
+    const roundsChannel = supabase
+      .channel('schema-db-changes')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'rounds',
+        filter: 'status=eq.completed'
+      }, () => {
+        console.log("Round completed, refreshing game history");
+        // This will be triggered when a round is completed
+        if (useMultiplayerCrashGame().fetchGameHistory) {
+          useMultiplayerCrashGame().fetchGameHistory();
+        }
+      })
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(roundsChannel);
+    };
+  }, []);
   
   // Set up a less frequent periodic refresh of the wallet balance
   useEffect(() => {
