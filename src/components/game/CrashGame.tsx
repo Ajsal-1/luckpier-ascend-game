@@ -38,7 +38,7 @@ const CrashGame: React.FC = () => {
     }
   }, [playerBet, playerWin, isAuthenticated, refreshWalletBalance]);
   
-  // Add a realtime subscription for round updates
+  // Add a realtime subscription for round updates with more aggressive balance refreshing
   useEffect(() => {
     // Subscribe to changes in rounds table to keep history updated
     const roundsChannel = supabase
@@ -54,28 +54,33 @@ const CrashGame: React.FC = () => {
         if (useMultiplayerCrashGame().fetchGameHistory) {
           useMultiplayerCrashGame().fetchGameHistory();
         }
+        
+        // Also refresh wallet balance on round completion
+        if (isAuthenticated) {
+          refreshWalletBalance();
+        }
       })
       .subscribe();
       
     return () => {
       supabase.removeChannel(roundsChannel);
     };
-  }, []);
+  }, [isAuthenticated, refreshWalletBalance]);
   
-  // Set up a less frequent periodic refresh of the wallet balance
+  // Set up more frequent periodic refreshes of the wallet balance
   useEffect(() => {
     if (!isAuthenticated) return;
     
     // Initial refresh once on component mount
     refreshWalletBalance();
     
-    // Set up interval for periodic refreshes
+    // Set up interval for periodic refreshes - more frequent
     const intervalId = setInterval(() => {
       refreshWalletBalance();
-    }, 15000); // Refresh every 15 seconds
+    }, 10000); // Refresh every 10 seconds
     
     return () => clearInterval(intervalId);
-  }, [isAuthenticated, refreshWalletBalance]); // Only depend on authentication status
+  }, [isAuthenticated, refreshWalletBalance]);
 
   const onPlaceBet = async (amount: number, autoCashout?: number | null) => {
     if (!isAuthenticated) {
@@ -84,9 +89,9 @@ const CrashGame: React.FC = () => {
       return;
     }
     
-    // Check if we're in countdown period
-    if (gameState !== GAME_STATE.COUNTDOWN) {
-      toast.error("Betting is only allowed during countdown period", { position: 'top-center' });
+    // Allow betting during countdown AND crashed states (for the 5s betting window)
+    if (gameState !== GAME_STATE.COUNTDOWN && gameState !== GAME_STATE.CRASHED) {
+      toast.error("Betting is only allowed during betting periods", { position: 'top-center' });
       return;
     }
     
@@ -101,6 +106,9 @@ const CrashGame: React.FC = () => {
       
       // Refresh wallet balance immediately after placing bet
       refreshWalletBalance();
+      
+      // Show confirmation toast
+      toast.success(`Bet placed: $${amount.toFixed(2)}`, { position: 'top-center' });
     } catch (error: any) {
       toast.error(`Failed to place bet: ${error.message || "Unknown error"}`, { position: 'top-center' });
     }
@@ -128,11 +136,11 @@ const CrashGame: React.FC = () => {
       case GAME_STATE.WAITING:
         return "Waiting for next round...";
       case GAME_STATE.COUNTDOWN:
-        return `Betting open! Starting in ${countdownTimer?.toFixed(1) || "5.0"}s`;
+        return `Betting open! Starting in ${Math.ceil(countdownTimer || 5)}s`;
       case GAME_STATE.PLAYING:
         return "Game in progress";
       case GAME_STATE.CRASHED:
-        return "Game crashed";
+        return `Game crashed! Betting open for ${Math.ceil(countdownTimer || 5)}s`;
       default:
         return "Unknown game state";
     }
@@ -142,7 +150,7 @@ const CrashGame: React.FC = () => {
     <div className="w-full">
       {/* Game status indicator */}
       <div className="w-full flex justify-between items-center mb-2">
-        <div className={`text-sm font-medium ${gameState === GAME_STATE.COUNTDOWN ? 'text-green-400' : ''}`}>
+        <div className={`text-sm font-medium ${(gameState === GAME_STATE.COUNTDOWN || gameState === GAME_STATE.CRASHED) ? 'text-green-400' : ''}`}>
           {getGameStateMessage()}
         </div>
         <div className="text-sm font-medium">

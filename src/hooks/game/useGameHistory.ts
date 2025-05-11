@@ -33,6 +33,7 @@ export const useGameHistory = () => {
         }));
         
         setGameHistory(historyItems);
+        console.log(`Fetched ${historyItems.length} history items`);
       } else {
         // Reset history but don't set fallback data - only use real Supabase data
         setGameHistory([]);
@@ -49,7 +50,7 @@ export const useGameHistory = () => {
     // Don't create local history items anymore, just refetch from Supabase
     fetchGameHistory();
     
-    // Update players
+    // Update players - mark those who didn't cash out as losers
     setPlayers(prev => 
       prev.map(player => {
         if (player.multiplier === null) {
@@ -58,11 +59,14 @@ export const useGameHistory = () => {
         return player;
       })
     );
+    
+    console.log(`Updated game history with crash at ${multiplier.toFixed(2)}x`);
   }, [fetchGameHistory]);
 
   // Reset players state for the next round
   const resetPlayers = useCallback(() => {
     setPlayers([]);
+    console.log('Reset players for new round');
   }, []);
 
   return {

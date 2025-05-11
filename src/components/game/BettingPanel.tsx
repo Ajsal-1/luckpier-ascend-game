@@ -88,20 +88,23 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
     // If there's an input error, always disable
     if (inputError) return true;
     
-    // IMPORTANT: Allow betting specifically during countdown (5s window)
-    // This is the key change - we enable betting ONLY during COUNTDOWN state
-    if (gameState === GAME_STATE.COUNTDOWN) {
-      return false; // Always enable during countdown
+    // CRITICAL FIX: Allow betting during both COUNTDOWN and CRASHED states
+    // This allows betting during the 5-second post-crash period
+    if (gameState === GAME_STATE.COUNTDOWN || gameState === GAME_STATE.CRASHED) {
+      return false; // Enable during countdown and crashed states
     }
     
     // If currently playing, disable placing bets
     if (isPlaying) return true;
     
-    // If crashed, disable until next countdown
-    if (isCrashed) return true;
-    
     // Default to disabled for safety
     return true;
+  };
+
+  // Format time to show only whole seconds
+  const formatTime = (time: number | null) => {
+    if (time === null) return "5";
+    return Math.ceil(time).toString();
   };
 
   return (
@@ -139,11 +142,11 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
             isDisabled={isPlaying || isBetPlaced}
           />
           
-          {/* Betting Period Indicator - new! */}
-          {gameState === GAME_STATE.COUNTDOWN && (
+          {/* Betting Period Indicator - improved! */}
+          {(gameState === GAME_STATE.COUNTDOWN || gameState === GAME_STATE.CRASHED) && (
             <div className="bg-green-700/20 border border-green-600/30 rounded-md p-2 text-center">
               <span className="text-green-400 text-sm font-medium">
-                Betting open for {remainingTime?.toFixed(1) || "5.0"}s
+                Betting open for {formatTime(remainingTime)}s
               </span>
             </div>
           )}

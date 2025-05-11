@@ -42,7 +42,7 @@ const GameActionButton: React.FC<GameActionButtonProps> = ({
   } else {
     // Enhanced visual feedback during countdown period
     const isCountdownActive = remainingTime !== null && remainingTime > 0;
-    const isNearlyFinished = remainingTime !== null && remainingTime <= 0.1;
+    const isNearlyFinished = remainingTime !== null && remainingTime <= 1;
     
     return (
       <button 
@@ -58,7 +58,7 @@ const GameActionButton: React.FC<GameActionButtonProps> = ({
         disabled={isDisabled}
       >
         {isCountdownActive
-          ? "Place Bet"
+          ? `Place Bet (${Math.ceil(remainingTime)}s)`
           : isNearlyFinished
             ? "Place Bet Now!"
             : "Place Bet"}

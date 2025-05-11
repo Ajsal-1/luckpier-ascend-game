@@ -20,15 +20,15 @@ const CountdownDisplay: React.FC<CountdownDisplayProps> = ({
     return null;
   }
   
-  // Use the server-provided countdown or default to 5.0
+  // Use the server-provided countdown or default to 5
   const countdown = remainingTime !== undefined && remainingTime !== null ? remainingTime : 5.0;
   
   // Calculate progress percentage (from 0 to 100)
   // Assuming a standard 5 second countdown
   const progress = Math.max(0, Math.min(100, ((5.0 - countdown) / 5.0) * 100));
   
-  // Format the countdown to always have one decimal place
-  const formattedCountdown = countdown.toFixed(1);
+  // Format the countdown to show only whole seconds
+  const formattedCountdown = Math.ceil(countdown).toString();
 
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/30 backdrop-blur-sm rounded-md">
