@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -23,6 +24,7 @@ export const useMultiplayerCrashGame = () => {
   const pollIntervalRef = useRef<number | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const countdownIntervalRef = useRef<number | null>(null);
+  const gameEngineErrorCount = useRef<number>(0);
   
   // Fetch user authentication status
   useEffect(() => {
@@ -60,10 +62,10 @@ export const useMultiplayerCrashGame = () => {
   const fetchGameHistory = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from('crash_rounds')
+        .from('rounds')
         .select('*')
-        .in('status', ['crashed'])
-        .order('created_at', { ascending: false })
+        .eq('status', 'completed')
+        .order('ended_at', { ascending: false })
         .limit(10);
         
       if (error) throw error;
@@ -73,7 +75,7 @@ export const useMultiplayerCrashGame = () => {
         const historyItems: HistoryItem[] = data.map(round => ({
           id: round.id,
           multiplier: round.crash_multiplier, // Use crash_multiplier as multiplier
-          timestamp: round.created_at
+          timestamp: round.ended_at || new Date().toISOString()
         }));
         
         setGameHistory(historyItems);
@@ -115,8 +117,8 @@ export const useMultiplayerCrashGame = () => {
             cancelAnimationFrame(animationFrameRef.current);
             animationFrameRef.current = null;
           }
+          return;
         }
-        return;
       }
       
       // Continue the animation
@@ -134,18 +136,41 @@ export const useMultiplayerCrashGame = () => {
     // Start a new animation
     animationFrameRef.current = requestAnimationFrame(updateMultiplier);
   }, [updateMultiplier]);
-  
-  // Poll for active rounds
+
+  // Handle crash event with retry logic
   const pollGameEngine = useCallback(async () => {
     try {
+      console.log("Polling game engine...");
+      
       // Call our edge function
       const response = await supabase.functions.invoke('crash-game-engine');
+      
+      // Reset error counter on successful call
+      if (response.error) {
+        console.error(`Error from crash-game-engine:`, response.error);
+        gameEngineErrorCount.current++;
+        
+        if (gameEngineErrorCount.current > 5 && gameState === GAME_STATE.WAITING) {
+          // If we're stuck in waiting state with errors, try to reset by starting a new game
+          console.log("Too many errors in waiting state, trying to restart game");
+          setCountdownTimer(3);
+          setGameState(GAME_STATE.COUNTDOWN);
+        }
+        
+        return; // Don't process further if there's an error
+      }
+      
+      // Reset error counter on successful call
+      gameEngineErrorCount.current = 0;
+      
       const data = response.data;
       
       if (!data) {
         console.error('No data returned from game engine');
         return;
       }
+      
+      console.log(`Game engine status: ${data.status}`, data);
       
       // Update game state based on response
       if (data.status === 'playing') {
@@ -170,16 +195,40 @@ export const useMultiplayerCrashGame = () => {
           setIsRoundActive(false);
           
           // Update crash history
-          fetchGameHistory();
+          updateGameHistory(data.crashPoint);
           
-          // Start countdown for next round (3 seconds)
-          setCountdownTimer(3);
-          
-          // If we have a player bet and no win, they lost
-          if (isBetPlaced && playerWin === null) {
-            toast.error(`Crashed at ${data.crashPoint.toFixed(2)}x! You lost your bet.`, {
-              position: 'top-center'
+          // Reset for next round
+          if (data.next_round) {
+            console.log("Setting up for next round:", data.next_round);
+            setCurrentRound({
+              round_id: data.next_round.id,
+              start_time: data.next_round.start_time,
+              status: 'waiting',
+              countdown: data.next_round.countdown
             });
+            
+            // Start countdown for next round
+            setCountdownTimer(data.next_round.countdown || 3);
+            
+            // If we have a player bet and no win, they lost
+            if (isBetPlaced && playerWin === null) {
+              toast.error(`Crashed at ${data.crashPoint.toFixed(2)}x! You lost your bet.`, {
+                position: 'top-center'
+              });
+              
+              // Reset player state for next round
+              setTimeout(() => {
+                setPlayerBet(null);
+                setPlayerWin(null);
+                setIsBetPlaced(false);
+                setGameState(GAME_STATE.COUNTDOWN); // Move to countdown for next round
+              }, 1000);
+            } else {
+              // No active bet, just move to countdown
+              setTimeout(() => {
+                setGameState(GAME_STATE.COUNTDOWN);
+              }, 1000);
+            }
           }
         }
       } else if (data.status === 'waiting') {
@@ -205,25 +254,28 @@ export const useMultiplayerCrashGame = () => {
           setCurrentMultiplier(1);
           setCrashPoint(null);
           
-          // If player had a previous bet but didn't cash out, reset for new round
-          if (isBetPlaced && playerWin === null) {
-            setPlayerBet(null);
-            setPlayerWin(null);
-            setIsBetPlaced(false);
-          }
-          
           // Start the multiplier animation
           startMultiplierAnimation();
         }
       } else if (data.status === 'created') {
         // A new round was created
         console.log("New round was created");
+        setCurrentRound({
+          round_id: data.round_id,
+          start_time: data.start_time,
+          status: 'waiting',
+          countdown: data.countdown || 3
+        });
+        
+        setGameState(GAME_STATE.COUNTDOWN);
+        setCountdownTimer(data.countdown || 3);
         fetchGameHistory();
       }
     } catch (error) {
       console.error('Error in pollGameEngine:', error);
+      gameEngineErrorCount.current++;
     }
-  }, [fetchGameHistory, gameState, isBetPlaced, playerWin, startMultiplierAnimation]);
+  }, [fetchGameHistory, gameState, isBetPlaced, playerWin, startMultiplierAnimation, updateGameHistory]);
   
   // Fetch active players for the current round
   const fetchPlayers = useCallback(async () => {
@@ -231,11 +283,11 @@ export const useMultiplayerCrashGame = () => {
     
     try {
       const { data, error } = await supabase
-        .from('user_bets')
+        .from('player_bets')
         .select(`
           id,
           bet_amount,
-          cashout_multiplier,
+          cashed_out_multiplier,
           profiles:user_id (username)
         `)
         .eq('round_id', currentRound.round_id);
@@ -247,7 +299,7 @@ export const useMultiplayerCrashGame = () => {
           id: bet.id,
           name: bet.profiles?.username || 'Anonymous',
           amount: bet.bet_amount,
-          multiplier: bet.cashout_multiplier
+          multiplier: bet.cashed_out_multiplier
         }));
         
         setPlayers(formattedPlayers);
@@ -292,43 +344,40 @@ export const useMultiplayerCrashGame = () => {
     };
   }, [fetchPlayers]);
   
-  // Set up realtime subscription for crash rounds
+  // Set up realtime subscription for rounds table
   useEffect(() => {
     const channel = supabase
       .channel('schema-db-changes')
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
-        table: 'crash_rounds',
+        table: 'rounds',
       }, (payload) => {
-        console.log('Crash round updated:', payload);
+        console.log('Round updated:', payload);
         
-        // If status changed to crashed
-        if (payload.new.status === 'crashed' && payload.old.status === 'running') {
+        // If status changed to completed (crashed)
+        if (payload.new.status === 'completed' && payload.old.status === 'running') {
           console.log(`Realtime update: crashed at ${payload.new.crash_multiplier}x`);
           setCrashPoint(payload.new.crash_multiplier);
           setGameState(GAME_STATE.CRASHED);
           setIsRoundActive(false);
-          setCountdownTimer(3);  // Set 3-second countdown after crash
+          
+          // Refresh game history
           fetchGameHistory();
-        }
-        // If status changed to waiting (new round countdown)
-        else if (payload.new.status === 'waiting' && payload.old.status === 'crashed') {
-          console.log('Realtime update: new round countdown started');
-          setGameState(GAME_STATE.COUNTDOWN);
-          // Reset player state for new round if they had a bet
+          
+          // If player had a bet and didn't cash out, they lost
           if (isBetPlaced && playerWin === null) {
-            setPlayerBet(null);
-            setPlayerWin(null);
-            setIsBetPlaced(false);
+            toast.error(`Crashed at ${payload.new.crash_multiplier.toFixed(2)}x! You lost your bet.`, {
+              position: 'top-center'
+            });
+            
+            // Reset player state
+            setTimeout(() => {
+              setPlayerBet(null);
+              setPlayerWin(null);
+              setIsBetPlaced(false);
+            }, 1000);
           }
-        }
-        // If status changed to running (round started)
-        else if (payload.new.status === 'running' && payload.old.status === 'waiting') {
-          console.log('Realtime update: round started');
-          setGameState(GAME_STATE.PLAYING);
-          setIsRoundActive(true);
-          setCurrentMultiplier(1);
         }
       })
       .subscribe();
@@ -338,7 +387,7 @@ export const useMultiplayerCrashGame = () => {
     };
   }, [fetchGameHistory, isBetPlaced, playerWin]);
   
-  // Set up countdown timer
+  // Set up countdown timer for game phases
   useEffect(() => {
     if (countdownTimer !== null && countdownTimer > 0 && gameState === GAME_STATE.COUNTDOWN) {
       console.log(`Countdown: ${countdownTimer.toFixed(1)}s`);
@@ -348,15 +397,24 @@ export const useMultiplayerCrashGame = () => {
         clearInterval(countdownIntervalRef.current);
       }
       
-      // Start a new interval
+      // Start a new interval that updates 10 times per second
       countdownIntervalRef.current = window.setInterval(() => {
         setCountdownTimer(prev => {
           if (prev === null) return null;
           const newValue = prev - 0.1;
-          return newValue > 0 ? parseFloat(newValue.toFixed(1)) : 0;
+          
+          // When timer reaches zero, prepare for next phase
+          if (newValue <= 0) {
+            clearInterval(countdownIntervalRef.current!);
+            countdownIntervalRef.current = null;
+            return 0;
+          }
+          
+          return parseFloat(newValue.toFixed(1));
         });
       }, 100);
-    } else if (countdownIntervalRef.current) {
+    } else if (countdownIntervalRef.current && (countdownTimer === 0 || gameState !== GAME_STATE.COUNTDOWN)) {
+      // Clean up interval when no longer in countdown
       clearInterval(countdownIntervalRef.current);
       countdownIntervalRef.current = null;
     }
@@ -397,6 +455,8 @@ export const useMultiplayerCrashGame = () => {
     }
     
     try {
+      console.log(`Attempting to place bet: $${amount}`);
+      
       const response = await supabase.functions.invoke('crash-game-engine', {
         body: {
           action: 'place_bet',
@@ -406,8 +466,13 @@ export const useMultiplayerCrashGame = () => {
         }
       });
       
+      if (response.error || (response.data && response.data.error)) {
+        const errorMessage = response.data?.error || response.error?.message || 'Failed to place bet';
+        throw new Error(errorMessage);
+      }
+      
       if (!response.data || !response.data.success) {
-        throw new Error(response.data?.error || 'Failed to place bet');
+        throw new Error('Failed to place bet - no success response');
       }
       
       console.log(`Bet placed: $${amount} with auto-cashout at ${autoCashoutAt || 'none'}`);
@@ -425,6 +490,7 @@ export const useMultiplayerCrashGame = () => {
       // Refresh player list
       fetchPlayers();
     } catch (error: any) {
+      console.error('Error placing bet:', error);
       toast.error(`Error placing bet: ${error.message}`, { position: 'top-center' });
     }
   }, [currentRound, fetchPlayers, gameState, isAuthenticated, userBalance]);
@@ -468,8 +534,13 @@ export const useMultiplayerCrashGame = () => {
         }
       });
       
+      if (response.error || (response.data && response.data.error)) {
+        const errorMessage = response.data?.error || response.error?.message || 'Failed to cash out';
+        throw new Error(errorMessage);
+      }
+      
       if (!response.data || !response.data.success) {
-        throw new Error(response.data?.error || 'Failed to cash out');
+        throw new Error('Failed to cash out - no success response');
       }
       
       // Update local state
@@ -490,6 +561,7 @@ export const useMultiplayerCrashGame = () => {
       // Refresh player list
       fetchPlayers();
     } catch (error: any) {
+      console.error('Error cashing out:', error);
       toast.error(`Error cashing out: ${error.message}`, { position: 'top-center' });
     }
   }, [currentMultiplier, currentRound, fetchPlayers, gameState, isAuthenticated, isBetPlaced, isRoundActive, playerBet, playerWin]);

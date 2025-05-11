@@ -3,3 +3,9 @@ project_id = "judvbdveeeggoztaryub"
 
 [functions.crash-game-engine]
 verify_jwt = false
+
+[functions.update_user_balance]
+verify_jwt = false
+
+[functions.handle-ipn]
+verify_jwt = false
