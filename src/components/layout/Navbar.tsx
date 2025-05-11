@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Wallet, Settings, TrendingUp } from 'lucide-react';
@@ -5,6 +6,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import AuthModal from '@/components/auth/AuthModal';
+
 export const Navbar = () => {
   const location = useLocation();
   const isMobile = useIsMobile();
@@ -14,24 +16,32 @@ export const Navbar = () => {
     wallet
   } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const navItems = [{
-    name: 'Home',
-    path: '/',
-    icon: null
-  }, {
-    name: 'My Bets',
-    path: '/my-bets',
-    icon: <TrendingUp className="w-4 h-4" />
-  }, {
-    name: 'Wallet',
-    path: '/wallet',
-    icon: <Wallet className="w-4 h-4" />
-  }, {
-    name: 'Settings',
-    path: '/settings',
-    icon: <Settings className="w-4 h-4" />
-  }];
-  return <>
+  
+  const navItems = [
+    {
+      name: 'Home',
+      path: '/',
+      icon: null
+    },
+    {
+      name: 'My Bets',
+      path: '/my-bets',
+      icon: <TrendingUp className="w-4 h-4" />
+    },
+    {
+      name: 'Wallet',
+      path: '/wallet',
+      icon: <Wallet className="w-4 h-4" />
+    },
+    {
+      name: 'Settings',
+      path: '/settings',
+      icon: <Settings className="w-4 h-4" />
+    }
+  ];
+
+  return (
+    <>
       <div className="w-full bg-[#000057] backdrop-blur-md border-b border-gray-800/50 fixed top-0 left-0 z-50">
         <div className="max-w-[1600px] mx-auto px-4">
           <div className="flex justify-between items-center h-16 bg-[#000057]">
@@ -43,38 +53,66 @@ export const Navbar = () => {
             </Link>
             
             <nav className="hidden md:flex space-x-6">
-              {navItems.map(item => <Link key={item.path} to={item.path} className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md transition-colors ${location.pathname === item.path ? 'text-luckpier-gold font-medium bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+              {navItems.map(item => (
+                <Link 
+                  key={item.path} 
+                  to={item.path} 
+                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md transition-colors ${location.pathname === item.path ? 'text-luckpier-gold font-medium bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                >
                   {item.icon && <span>{item.icon}</span>}
                   <span>{item.name}</span>
-                </Link>)}
+                </Link>
+              ))}
             </nav>
             
             <div className="flex items-center space-x-4">
-              {isAuthenticated ? <>
+              {isAuthenticated ? (
+                <>
                   <div className="text-white bg-[#1c2533] px-4 py-1.5 rounded font-medium border border-gray-700/30">
                     <span className="text-gray-400 mr-1">$</span>
-                    {wallet.loading ? '...' : wallet.balance.toFixed(2)}
+                    {wallet.loading ? (
+                      <span className="inline-block min-w-[30px]">...</span>
+                    ) : (
+                      wallet.balance.toFixed(2)
+                    )}
                   </div>
                   
-                  <Button onClick={() => signOut()} variant="outline" size="sm" className="hidden sm:flex bg-blue-500 hover:bg-blue-400">
+                  <Button 
+                    onClick={() => signOut()} 
+                    variant="outline" 
+                    size="sm" 
+                    className="hidden sm:flex bg-blue-500 hover:bg-blue-400"
+                  >
                     Sign Out
                   </Button>
-                </> : <>
-                  <Button onClick={() => setIsAuthModalOpen(true)} variant="outline" size="sm" className="hidden sm:flex bg-[#fef00a]">
+                </>
+              ) : (
+                <>
+                  <Button 
+                    onClick={() => setIsAuthModalOpen(true)} 
+                    variant="outline" 
+                    size="sm" 
+                    className="hidden sm:flex bg-[#fef00a]"
+                  >
                     Sign In
                   </Button>
-                  <Button onClick={() => {
-                setIsAuthModalOpen(true);
-              }} size="sm" className="hidden sm:flex">
+                  <Button 
+                    onClick={() => setIsAuthModalOpen(true)} 
+                    size="sm" 
+                    className="hidden sm:flex"
+                  >
                     Sign Up
                   </Button>
-                </>}
+                </>
+              )}
             </div>
           </div>
         </div>
       </div>
       
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
-    </>;
+    </>
+  );
 };
+
 export default Navbar;

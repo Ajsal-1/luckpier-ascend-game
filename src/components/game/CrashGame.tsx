@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useMultiplayerCrashGame } from '@/hooks/game/useMultiplayerCrashGame';
 import { GAME_STATE } from '@/hooks/game/types';
 import Multiplier from '@/components/game/Multiplier';
@@ -31,29 +30,28 @@ const CrashGame: React.FC = () => {
     currentRound,
   } = useMultiplayerCrashGame();
 
-  // Update wallet balance whenever player bet or win changes
-  // Refresh less frequently to reduce API calls
+  // Update wallet balance whenever significant events occur
+  // But only refresh once per event to avoid infinite loops
   useEffect(() => {
-    // Only refresh when authenticated and after significant game events
-    if (isAuthenticated) {
+    if (isAuthenticated && (playerBet !== null || playerWin !== null)) {
       refreshWalletBalance();
     }
-  }, [playerBet, playerWin, isAuthenticated, refreshWalletBalance]);
+  }, [playerBet, playerWin, isAuthenticated]);
   
   // Set up a less frequent periodic refresh of the wallet balance
   useEffect(() => {
-    if (isAuthenticated) {
-      // Initial refresh
+    if (!isAuthenticated) return;
+    
+    // Initial refresh once on component mount
+    refreshWalletBalance();
+    
+    // Set up interval for periodic refreshes
+    const intervalId = setInterval(() => {
       refreshWalletBalance();
-      
-      // Set up interval for periodic refreshes - reduced from 5s to 15s
-      const intervalId = setInterval(() => {
-        refreshWalletBalance();
-      }, 15000); // Refresh every 15 seconds instead of 5
-      
-      return () => clearInterval(intervalId);
-    }
-  }, [isAuthenticated, refreshWalletBalance]);
+    }, 15000); // Refresh every 15 seconds
+    
+    return () => clearInterval(intervalId);
+  }, [isAuthenticated]); // Only depend on authentication status
 
   const onPlaceBet = async (amount: number, autoCashout?: number | null) => {
     if (!isAuthenticated) {
