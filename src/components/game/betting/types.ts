@@ -11,4 +11,5 @@ export interface BettingPanelProps {
   gameState: any;
   isProcessingBet?: boolean;
   isProcessingCashout?: boolean;
+  betError?: string | null;
 }

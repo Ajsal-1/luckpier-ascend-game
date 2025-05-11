@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import * as crypto from "https://deno.land/std@0.167.0/crypto/mod.ts";
@@ -352,8 +353,8 @@ serve(async (req) => {
           return createErrorResponse('Insufficient balance', 400);
         }
         
-        // Check if round is in pending or crashed status 
-        // FIXED: Allow betting during both pending and crashed status
+        // IMPROVED: Allow betting in both pending AND completed (post-crash) status
+        // This fixes the timing issue where users couldn't place bets
         const { data: round, error: roundError } = await supabase
           .from('rounds')
           .select('status')
@@ -365,6 +366,7 @@ serve(async (req) => {
           return createErrorResponse('Invalid round', 400);
         }
         
+        // FIXED: Allow betting during both pending and completed states
         if (round.status !== 'pending' && round.status !== 'completed') {
           console.error("Cannot place bet - round status is:", round.status);
           return createErrorResponse(`Round has already ${round.status === 'running' ? 'started' : 'ended'}`, 400);
@@ -495,46 +497,28 @@ serve(async (req) => {
           return createErrorResponse('Failed to process cashout', 500);
         }
         
-        // Add winnings to user balance - try using RPC first, fall back to direct update if that fails
-        let profileUpdateSuccess = false;
-        try {
-          const { error: rpcError } = await supabase.rpc('get_new_balance', { 
-            user_id: userId, 
-            amount_to_add: winnings 
-          });
+        // IMPROVED: More reliable balance update with better error handling
+        // First try to get the current balance to ensure accuracy
+        const { data: currentProfile, error: currentProfileError } = await supabase
+          .from('profiles')
+          .select('balance')
+          .eq('id', userId)
+          .single();
           
-          if (!rpcError) {
-            profileUpdateSuccess = true;
-          } else {
-            console.error("RPC error, falling back to direct update:", rpcError);
-          }
-        } catch (err) {
-          console.error("Error calling RPC, falling back to direct update:", err);
+        if (currentProfileError || !currentProfile) {
+          console.error("Error getting current profile for cashout:", currentProfileError);
+          return createErrorResponse('Failed to retrieve current balance', 500);
         }
         
-        // Fallback: direct balance update if RPC fails
-        if (!profileUpdateSuccess) {
-          // First get current balance
-          const { data: currentProfile } = await supabase
-            .from('profiles')
-            .select('balance')
-            .eq('id', userId)
-            .single();
-            
-          if (!currentProfile) {
-            return createErrorResponse('Failed to retrieve current balance', 500);
-          }
+        // Update with new balance
+        const { error: updateBalanceError } = await supabase
+          .from('profiles')
+          .update({ balance: currentProfile.balance + winnings })
+          .eq('id', userId);
           
-          // Update with new balance
-          const { error: directUpdateError } = await supabase
-            .from('profiles')
-            .update({ balance: currentProfile.balance + winnings })
-            .eq('id', userId);
-            
-          if (directUpdateError) {
-            console.error("Error with direct balance update:", directUpdateError);
-            return createErrorResponse('Failed to update balance', 500);
-          }
+        if (updateBalanceError) {
+          console.error("Error updating balance on cashout:", updateBalanceError);
+          return createErrorResponse('Failed to update balance', 500);
         }
         
         console.log(`User ${userId} cashed out at ${multiplier}x for ${winnings}`);

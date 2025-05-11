@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useMultiplayerCrashGame } from '@/hooks/game/useMultiplayerCrashGame';
 import { GAME_STATE } from '@/hooks/game/types';
@@ -17,6 +18,7 @@ const CrashGame: React.FC = () => {
   const [lastBalanceRefresh, setLastBalanceRefresh] = useState<number>(Date.now());
   const [isProcessingBet, setIsProcessingBet] = useState<boolean>(false);
   const [isProcessingCashout, setIsProcessingCashout] = useState<boolean>(false);
+  const [betError, setBetError] = useState<string | null>(null);
 
   const {
     gameState,
@@ -86,6 +88,7 @@ const CrashGame: React.FC = () => {
     }
   }, [isAuthenticated, throttledRefreshBalance]);
 
+  // IMPROVED: Better bet placement with enhanced validation
   const onPlaceBet = async (amount: number, autoCashout?: number | null) => {
     if (!isAuthenticated) {
       toast.error("Please sign in to place bets", { position: 'top-center' });
@@ -93,15 +96,27 @@ const CrashGame: React.FC = () => {
       return;
     }
     
-    // Allow betting during countdown AND crashed states (for the 5s betting window)
+    // FIXED: Allow betting during countdown AND crashed states (for the 5s betting window)
     if (gameState !== GAME_STATE.COUNTDOWN && gameState !== GAME_STATE.CRASHED) {
       toast.error("Betting is only allowed during betting periods", { position: 'top-center' });
+      setBetError("Betting is only allowed during betting periods");
       return;
     }
+    
+    // Reset any previous errors
+    setBetError(null);
     
     // Check user's wallet balance
     if (amount > wallet.balance) {
       toast.error("Insufficient balance for this bet", { position: 'top-center' });
+      setBetError("Insufficient balance for this bet");
+      return;
+    }
+
+    // Check if we have a round ID
+    if (!currentRound || !currentRound.round_id) {
+      toast.error("No active round available", { position: 'top-center' });
+      setBetError("No active round available");
       return;
     }
     
@@ -115,12 +130,16 @@ const CrashGame: React.FC = () => {
       // Show confirmation toast
       toast.success(`Bet placed: $${amount.toFixed(2)}`, { position: 'top-center' });
     } catch (error: any) {
-      toast.error(`Failed to place bet: ${error.message || "Unknown error"}`, { position: 'top-center' });
+      const errorMsg = error.message || "Unknown error";
+      toast.error(`Failed to place bet: ${errorMsg}`, { position: 'top-center' });
+      setBetError(errorMsg);
+      console.error("Bet placement error:", error);
     } finally {
       setIsProcessingBet(false);
     }
   };
 
+  // IMPROVED: Better cashout handling with enhanced error feedback
   const onCashout = async () => {
     if (!isAuthenticated) {
       toast.error("Please sign in to cash out", { position: 'top-center' });
@@ -135,12 +154,15 @@ const CrashGame: React.FC = () => {
       // Refresh wallet balance immediately after cashing out
       throttledRefreshBalance();
     } catch (error: any) {
-      toast.error(`Failed to cash out: ${error.message || "Unknown error"}`, { position: 'top-center' });
+      const errorMsg = error.message || "Unknown error";
+      toast.error(`Failed to cash out: ${errorMsg}`, { position: 'top-center' });
+      console.error("Cashout error:", error);
     } finally {
       setIsProcessingCashout(false);
     }
   };
 
+  // IMPROVED: Better game state messages
   const getGameStateMessage = () => {
     switch(gameState) {
       case GAME_STATE.WAITING:

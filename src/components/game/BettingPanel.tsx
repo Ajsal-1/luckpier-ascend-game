@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import BetAmountInput from './betting/BetAmountInput';
 import AutoCashoutInput from './betting/AutoCashoutInput';
@@ -18,7 +19,8 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
   isBetPlaced = false,
   gameState,
   isProcessingBet = false,
-  isProcessingCashout = false
+  isProcessingCashout = false,
+  betError
 }) => {
   const [betAmount, setBetAmount] = useState("100.00");
   const [autoCashout, setAutoCashout] = useState<string>("2.00");
@@ -27,11 +29,11 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [cachedBalance, setCachedBalance] = useState(balance);
   
-  // Smooth balance updates to prevent UI jumping
+  // Smooth balance updates with increased delay for better visual stability
   useEffect(() => {
     const timer = setTimeout(() => {
       setCachedBalance(balance);
-    }, 500); // Only update balance display after a delay
+    }, 800); // Increased delay for better UI stability
     
     return () => clearTimeout(timer);
   }, [balance]);
@@ -101,8 +103,11 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
     setUseAutoCashout(e.target.checked);
   };
 
-  // Determine if button should be disabled based on game state and countdown
+  // IMPROVED: Better button disabled state logic
   const isButtonDisabled = () => {
+    // If processing, always disable
+    if (isProcessingBet || isProcessingCashout) return true;
+    
     // If bet is already placed, check if we're in playing state
     if (isBetPlaced) {
       // Button should only be disabled in playing state if the user won or game crashed
@@ -112,23 +117,13 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
     // If there's an input error, always disable
     if (inputError) return true;
     
-    // FIXED: Allow betting during both COUNTDOWN and CRASHED states
-    // This allows betting during the 5-second post-crash period
+    // IMPROVED: Only allow betting during COUNTDOWN and CRASHED states
     if (gameState === GAME_STATE.COUNTDOWN || gameState === GAME_STATE.CRASHED) {
       return false; // Enable during countdown and crashed states
     }
     
-    // If currently playing, disable placing bets
-    if (isPlaying) return true;
-    
     // Default to disabled for safety
     return true;
-  };
-
-  // Format time to show only whole seconds
-  const formatTime = (time: number | null) => {
-    if (time === null) return "5";
-    return Math.ceil(time).toString();
   };
 
   return (
@@ -177,7 +172,7 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
           
           {/* Error and Status Messages */}
           <StatusMessage 
-            inputError={inputError}
+            inputError={inputError || betError}
             isPlaying={isPlaying}
             isBetPlaced={isBetPlaced}
             isCrashed={isCrashed}
