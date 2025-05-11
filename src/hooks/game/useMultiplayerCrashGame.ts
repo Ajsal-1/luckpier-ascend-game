@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -70,11 +69,14 @@ export const useMultiplayerCrashGame = () => {
       if (error) throw error;
       
       if (data) {
-        setGameHistory(data.map(round => ({
+        // Map to the correct HistoryItem interface format
+        const historyItems: HistoryItem[] = data.map(round => ({
           id: round.id,
-          crashPoint: round.crash_multiplier,
+          multiplier: round.crash_multiplier, // Use crash_multiplier as multiplier
           timestamp: round.created_at
-        })));
+        }));
+        
+        setGameHistory(historyItems);
       }
     } catch (err) {
       console.error('Error fetching game history:', err);
@@ -492,13 +494,42 @@ export const useMultiplayerCrashGame = () => {
     }
   }, [currentMultiplier, currentRound, fetchPlayers, gameState, isAuthenticated, isBetPlaced, isRoundActive, playerBet, playerWin]);
   
+  // Update game history when game crashes
+  const updateGameHistory = useCallback((multiplier: number) => {
+    const timestamp = new Date().toISOString();
+    
+    setGameHistory(prev => {
+      const newHistory = [
+        { 
+          id: `game-${Date.now()}`, 
+          multiplier, 
+          timestamp 
+        },
+        ...prev.slice(0, 19) // Keep only the 20 most recent games
+      ];
+      return newHistory;
+    });
+    
+    // Update players
+    setPlayers(prev => 
+      prev.map(player => {
+        if (player.multiplier === null) {
+          return { ...player, multiplier: 0 }; // Lost
+        }
+        return player;
+      })
+    );
+    
+    // Re-fetch history to sync with server
+    fetchGameHistory();
+  }, [fetchGameHistory]);
+  
   return {
     gameState,
     countdownTimer,
     currentMultiplier,
     crashPoint,
     isRoundActive,
-    userBalance,
     playerBet,
     playerWin,
     isBetPlaced,
@@ -508,5 +539,6 @@ export const useMultiplayerCrashGame = () => {
     currentRound,
     handlePlaceBet,
     handleCashout,
+    updateGameHistory,
   };
 };
