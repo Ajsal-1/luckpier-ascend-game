@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { CheckCircle, Loader2 } from "lucide-react";
+import { CheckCircle, Loader2, AlertCircle } from "lucide-react";
 
 interface StatusMessageProps {
   inputError: string | null;
@@ -8,6 +8,7 @@ interface StatusMessageProps {
   isBetPlaced: boolean;
   isCrashed: boolean;
   isProcessing?: boolean;
+  betError?: string | null;
 }
 
 const StatusMessage: React.FC<StatusMessageProps> = ({ 
@@ -15,13 +16,18 @@ const StatusMessage: React.FC<StatusMessageProps> = ({
   isPlaying, 
   isBetPlaced, 
   isCrashed,
-  isProcessing = false
+  isProcessing = false,
+  betError = null
 }) => {
+  // Prioritize bet errors over input errors for display
+  const displayError = betError || inputError;
+
   return (
     <>
-      {inputError && !isPlaying && (
-        <div className="text-red-500 text-xs mt-1 min-h-[1.5rem]">
-          {inputError}
+      {displayError && !isPlaying && (
+        <div className="text-red-500 text-xs mt-1 min-h-[1.5rem] flex items-center">
+          <AlertCircle className="w-3 h-3 mr-1" />
+          {displayError}
         </div>
       )}
       
@@ -46,7 +52,7 @@ const StatusMessage: React.FC<StatusMessageProps> = ({
       )}
       
       {/* Add a minimum height placeholder when no message is shown */}
-      {!inputError && !isProcessing && !isBetPlaced && (
+      {!displayError && !isProcessing && !isBetPlaced && (
         <div className="min-h-[2.5rem]"></div>
       )}
     </>

@@ -172,11 +172,12 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
           
           {/* Error and Status Messages */}
           <StatusMessage 
-            inputError={inputError || betError}
+            inputError={inputError}
             isPlaying={isPlaying}
             isBetPlaced={isBetPlaced}
             isCrashed={isCrashed}
             isProcessing={isProcessingBet || isProcessingCashout}
+            betError={betError}
           />
 
           {/* Spacer */}
