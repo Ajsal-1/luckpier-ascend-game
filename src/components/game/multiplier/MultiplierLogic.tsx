@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import { formatMultiplier } from './utils';
 import { ChartDataPoint } from './types';
@@ -116,9 +117,10 @@ const MultiplierLogic: React.FC<MultiplierLogicProps> = ({
       setCrashEffectActive(true); // Activate crash effect
       
       // Reset crash effect after animation completes
+      // Extended from 2 seconds to 5 seconds for more visibility
       const resetTimer = setTimeout(() => {
         setCrashEffectActive(false);
-      }, 2000); // 2 seconds of crash effect
+      }, 5000); // 5 seconds of crash effect
       
       return () => clearTimeout(resetTimer);
       

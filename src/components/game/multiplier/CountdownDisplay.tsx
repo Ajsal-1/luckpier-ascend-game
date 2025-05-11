@@ -19,18 +19,21 @@ const CountdownDisplay: React.FC<CountdownDisplayProps> = ({
   
   // Extract the number from the display value, assume it's "1.00x" format
   // and convert to a number for the calculation, defaulting to 0 if not a valid number
-  const countdownValue = parseFloat(displayValue);
+  const countdownValue = parseFloat(displayValue) || 3;
   
-  // Calculate progress percentage - we assume countdown is 3 seconds
-  // Value goes from 0 to 3, so we reverse it and multiply by 100/3
+  // Calculate progress percentage - we assume countdown can be up to 6 seconds
+  // Value goes from 0 to 6, so we reverse it and multiply by 100/6
   // to get a percentage that goes from 0 to 100
-  const progress = countdownValue === 1 ? 0 : Math.max(0, Math.min(100, (3 - countdownValue) * (100/3)));
+  const maxCountdown = 6; // Maximum countdown in seconds
+  const progress = countdownValue === 1 ? 
+    0 : 
+    Math.max(0, Math.min(100, ((maxCountdown - countdownValue) / maxCountdown) * 100));
 
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
+    <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/30 backdrop-blur-sm rounded-md">
       <div 
         className={cn(
-          "text-5xl md:text-6xl font-bold mb-2",
+          "text-5xl md:text-7xl font-bold mb-4",
           countdownValue <= 1 ? "text-green-500" : "text-white"
         )}
       >
@@ -38,8 +41,12 @@ const CountdownDisplay: React.FC<CountdownDisplayProps> = ({
         {Math.ceil(countdownValue)}
       </div>
       
+      <div className="text-xl md:text-2xl mb-4 text-white/80">
+        Next round starting soon
+      </div>
+      
       {/* Progress bar */}
-      <div className="w-32 md:w-40 bg-gray-800 h-1.5 rounded-full overflow-hidden">
+      <div className="w-32 md:w-40 bg-gray-800 h-2 rounded-full overflow-hidden">
         <div 
           className="h-full bg-green-500 transition-all duration-100"
           style={{ width: `${progress}%` }}

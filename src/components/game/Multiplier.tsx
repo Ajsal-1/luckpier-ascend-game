@@ -37,9 +37,10 @@ const Multiplier: React.FC<MultiplierProps> = ({
             (isCrashed || winValue) ? "animate-pulse-win" : ""
           )}
         >
-          {/* Chart Container */}
+          {/* Chart Container - Always visible during gameplay */}
           <div className="absolute inset-0 flex items-center justify-center">
-            {(isPlaying || isCrashed || winValue) && chartData.length > 0 && (
+            {/* Only hide chart during countdown, show for all users during gameplay */}
+            {(gameState === GAME_STATE.PLAYING || gameState === GAME_STATE.CRASHED || winValue) && (
               <MultiplierChart
                 chartData={chartData}
                 isCrashed={isCrashed}

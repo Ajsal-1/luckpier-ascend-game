@@ -25,6 +25,8 @@ export const useMultiplayerCrashGame = () => {
   const animationFrameRef = useRef<number | null>(null);
   const countdownIntervalRef = useRef<number | null>(null);
   const gameEngineErrorCount = useRef<number>(0);
+  const lastCrashTime = useRef<number | null>(null);
+  const postCrashCooldownTime = useRef<number>(6); // 6 seconds cooldown after crash
 
   // Calculate multiplier based on start time
   const calculateCurrentMultiplier = useCallback((startTime: string): number => {
@@ -93,6 +95,9 @@ export const useMultiplayerCrashGame = () => {
         return player;
       })
     );
+    
+    // Store crash time for cooldown
+    lastCrashTime.current = Date.now();
     
     // Re-fetch history to sync with server
     fetchGameHistory();
@@ -178,7 +183,8 @@ export const useMultiplayerCrashGame = () => {
           id,
           bet_amount,
           cashed_out_multiplier,
-          profiles:user_id (username)
+          user_id,
+          profiles (username)
         `)
         .eq('round_id', currentRound.round_id);
         
@@ -189,7 +195,8 @@ export const useMultiplayerCrashGame = () => {
           id: bet.id,
           name: bet.profiles?.username || 'Anonymous',
           amount: bet.bet_amount,
-          multiplier: bet.cashed_out_multiplier
+          multiplier: bet.cashed_out_multiplier,
+          userId: bet.user_id
         }));
         
         setPlayers(formattedPlayers);
@@ -246,7 +253,7 @@ export const useMultiplayerCrashGame = () => {
           console.log("Game is now in PLAYING state");
           setGameState(GAME_STATE.PLAYING);
           setIsRoundActive(true);
-          // Start the multiplier animation
+          // Start the multiplier animation for all users whether they bet or not
           startMultiplierAnimation();
         }
       } else if (data.status === 'crashed') {
@@ -261,7 +268,7 @@ export const useMultiplayerCrashGame = () => {
           // Update crash history
           updateGameHistory(data.crashPoint);
           
-          // Reset for next round
+          // Reset for next round with longer cooldown
           if (data.next_round) {
             console.log("Setting up for next round:", data.next_round);
             setCurrentRound({
@@ -271,13 +278,14 @@ export const useMultiplayerCrashGame = () => {
               countdown: data.next_round.countdown
             });
             
-            // Start countdown for next round
-            setCountdownTimer(data.next_round.countdown || 3);
+            // Start countdown for next round with extended cooldown (6 seconds)
+            setCountdownTimer(postCrashCooldownTime.current);
             
             // If we have a player bet and no win, they lost
             if (isBetPlaced && playerWin === null) {
               toast.error(`Crashed at ${data.crashPoint.toFixed(2)}x! You lost your bet.`, {
-                position: 'top-center'
+                position: 'top-center',
+                duration: 5000 // Show for 5 seconds
               });
               
               // Reset player state for next round
@@ -286,12 +294,12 @@ export const useMultiplayerCrashGame = () => {
                 setPlayerWin(null);
                 setIsBetPlaced(false);
                 setGameState(GAME_STATE.COUNTDOWN); // Move to countdown for next round
-              }, 1000);
+              }, postCrashCooldownTime.current * 1000); // Wait for cooldown period
             } else {
-              // No active bet, just move to countdown
+              // No active bet, just move to countdown after cooldown
               setTimeout(() => {
                 setGameState(GAME_STATE.COUNTDOWN);
-              }, 1000);
+              }, postCrashCooldownTime.current * 1000); // Wait for cooldown period
             }
           }
         }
@@ -318,7 +326,7 @@ export const useMultiplayerCrashGame = () => {
           setCurrentMultiplier(1);
           setCrashPoint(null);
           
-          // Start the multiplier animation
+          // Start the multiplier animation for all users
           startMultiplierAnimation();
         }
       } else if (data.status === 'created') {
@@ -400,7 +408,8 @@ export const useMultiplayerCrashGame = () => {
           // If player had a bet and didn't cash out, they lost
           if (isBetPlaced && playerWin === null) {
             toast.error(`Crashed at ${payload.new.crash_multiplier.toFixed(2)}x! You lost your bet.`, {
-              position: 'top-center'
+              position: 'top-center',
+              duration: 5000 // Show for 5 seconds
             });
             
             // Reset player state
@@ -408,7 +417,7 @@ export const useMultiplayerCrashGame = () => {
               setPlayerBet(null);
               setPlayerWin(null);
               setIsBetPlaced(false);
-            }, 1000);
+            }, 5000); // Extended from 1 second to 5 seconds
           }
         }
       })
@@ -470,7 +479,7 @@ export const useMultiplayerCrashGame = () => {
       return;
     }
     
-    // Allow bets during countdown or waiting phase
+    // Allow bets during countdown or waiting phase only
     if (gameState !== GAME_STATE.COUNTDOWN && gameState !== GAME_STATE.WAITING) {
       toast.error('You can only place bets before the round starts', { position: 'top-center' });
       return;
@@ -535,8 +544,13 @@ export const useMultiplayerCrashGame = () => {
       return;
     }
     
-    if (gameState !== GAME_STATE.PLAYING || !isRoundActive) {
-      toast.error('Round not active', { position: 'top-center' });
+    if (gameState !== GAME_STATE.PLAYING) {
+      toast.error('Round is not active - cannot cash out', { position: 'top-center' });
+      return;
+    }
+    
+    if (!isRoundActive) {
+      toast.error('The round is not currently active', { position: 'top-center' });
       return;
     }
     
@@ -546,12 +560,12 @@ export const useMultiplayerCrashGame = () => {
     }
     
     if (!isBetPlaced || playerBet === null) {
-      toast.error('No active bet to cash out', { position: 'top-center' });
+      toast.error('You have not placed a bet in this round', { position: 'top-center' });
       return;
     }
     
     if (playerWin !== null) {
-      toast.error('Already cashed out', { position: 'top-center' });
+      toast.error('You have already cashed out this round', { position: 'top-center' });
       return;
     }
     

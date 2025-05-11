@@ -161,9 +161,9 @@ serve(async (req) => {
               console.error("Error marking bets as lost:", betUpdateError);
             }
             
-            // Create a new round to start in 3 seconds
+            // Create a new round to start in 6 seconds (increased cooldown time)
             const startTime = new Date();
-            startTime.setSeconds(startTime.getSeconds() + 3); // Start in 3 seconds
+            startTime.setSeconds(startTime.getSeconds() + 6); // Start in 6 seconds
             
             // Generate crash point between 1.01x and 10x
             let crashPoint: number;
@@ -207,7 +207,7 @@ serve(async (req) => {
               next_round: {
                 id: newRound.id,
                 start_time: newRound.started_at,
-                countdown: 3 // Standard countdown time
+                countdown: 6 // Extended cooldown time
               }
             });
           }
@@ -365,6 +365,18 @@ serve(async (req) => {
           return createErrorResponse('Round has already started', 400);
         }
         
+        // Check if user already has a bet in this round
+        const { data: existingBet, error: existingBetError } = await supabase
+          .from('player_bets')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('round_id', roundId)
+          .maybeSingle();
+
+        if (existingBet) {
+          return createErrorResponse('You already have a bet in this round', 400);
+        }
+        
         // Deduct balance
         const { error: balanceError } = await supabase
           .from('profiles')
@@ -443,16 +455,23 @@ serve(async (req) => {
         // Find user's active bet for this round
         const { data: bet, error: betError } = await supabase
           .from('player_bets')
-          .select('id, bet_amount, status')
+          .select('id, bet_amount, status, cashed_out_multiplier')
           .eq('user_id', userId)
           .eq('round_id', roundId)
           .eq('status', 'active')
-          .is('cashed_out_multiplier', null)
-          .single();
+          .maybeSingle();
           
-        if (betError || !bet) {
+        if (betError) {
           console.error("Error retrieving bet for cashout:", betError);
-          return createErrorResponse('No active bet found', 400);
+          return createErrorResponse('Error retrieving bet', 400);
+        }
+        
+        if (!bet) {
+          return createErrorResponse('No active bet found for this round', 400);
+        }
+        
+        if (bet.cashed_out_multiplier !== null) {
+          return createErrorResponse('You have already cashed out this bet', 400);
         }
         
         // Calculate winnings
