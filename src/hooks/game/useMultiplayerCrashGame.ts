@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -25,6 +24,33 @@ export const useMultiplayerCrashGame = () => {
   const animationFrameRef = useRef<number | null>(null);
   const countdownIntervalRef = useRef<number | null>(null);
   const gameEngineErrorCount = useRef<number>(0);
+
+  // Fetch game history - defined early to avoid TDZ issues
+  const fetchGameHistory = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('rounds')
+        .select('*')
+        .eq('status', 'completed')
+        .order('ended_at', { ascending: false })
+        .limit(10);
+        
+      if (error) throw error;
+      
+      if (data) {
+        // Map to the correct HistoryItem interface format
+        const historyItems: HistoryItem[] = data.map(round => ({
+          id: round.id,
+          multiplier: round.crash_multiplier, // Use crash_multiplier as multiplier
+          timestamp: round.ended_at || new Date().toISOString()
+        }));
+        
+        setGameHistory(historyItems);
+      }
+    } catch (err) {
+      console.error('Error fetching game history:', err);
+    }
+  }, []);
   
   // Update game history when game crashes
   const updateGameHistory = useCallback((multiplier: number) => {
@@ -54,68 +80,9 @@ export const useMultiplayerCrashGame = () => {
     
     // Re-fetch history to sync with server
     fetchGameHistory();
-  }, []);
+  }, [fetchGameHistory]);
   
-  // Fetch user authentication status
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data } = await supabase.auth.getSession();
-      setIsAuthenticated(!!data.session);
-      
-      // If authenticated, fetch user balance
-      if (data.session) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('balance')
-          .eq('id', data.session.user.id)
-          .single();
-          
-        if (profileData) {
-          setUserBalance(profileData.balance);
-        }
-      }
-    };
-    
-    checkAuth();
-    
-    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
-      setIsAuthenticated(event !== 'SIGNED_OUT');
-      checkAuth();
-    });
-    
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
-  
-  // Fetch game history
-  const fetchGameHistory = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('rounds')
-        .select('*')
-        .eq('status', 'completed')
-        .order('ended_at', { ascending: false })
-        .limit(10);
-        
-      if (error) throw error;
-      
-      if (data) {
-        // Map to the correct HistoryItem interface format
-        const historyItems: HistoryItem[] = data.map(round => ({
-          id: round.id,
-          multiplier: round.crash_multiplier, // Use crash_multiplier as multiplier
-          timestamp: round.ended_at || new Date().toISOString()
-        }));
-        
-        setGameHistory(historyItems);
-      }
-    } catch (err) {
-      console.error('Error fetching game history:', err);
-    }
-  }, []);
-  
-  // Calculate multiplier based on start time
+  // Calculate multiplier based on start time - moved up before its use
   const calculateCurrentMultiplier = useCallback((startTime: string): number => {
     const start = new Date(startTime).getTime();
     const now = Date.now();
@@ -166,7 +133,71 @@ export const useMultiplayerCrashGame = () => {
     // Start a new animation
     animationFrameRef.current = requestAnimationFrame(updateMultiplier);
   }, [updateMultiplier]);
-
+  
+  // Fetch user authentication status
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+      setIsAuthenticated(!!data.session);
+      
+      // If authenticated, fetch user balance
+      if (data.session) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('balance')
+          .eq('id', data.session.user.id)
+          .single();
+          
+        if (profileData) {
+          setUserBalance(profileData.balance);
+        }
+      }
+    };
+    
+    checkAuth();
+    
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+      setIsAuthenticated(event !== 'SIGNED_OUT');
+      checkAuth();
+    });
+    
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+  
+  // Fetch active players for the current round
+  const fetchPlayers = useCallback(async () => {
+    if (!currentRound || !currentRound.round_id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('player_bets')
+        .select(`
+          id,
+          bet_amount,
+          cashed_out_multiplier,
+          profiles:user_id (username)
+        `)
+        .eq('round_id', currentRound.round_id);
+        
+      if (error) throw error;
+      
+      if (data) {
+        const formattedPlayers = data.map((bet: any) => ({
+          id: bet.id,
+          name: bet.profiles?.username || 'Anonymous',
+          amount: bet.bet_amount,
+          multiplier: bet.cashed_out_multiplier
+        }));
+        
+        setPlayers(formattedPlayers);
+      }
+    } catch (err) {
+      console.error('Error fetching players:', err);
+    }
+  }, [currentRound]);
+  
   // Handle crash event with retry logic
   const pollGameEngine = useCallback(async () => {
     try {
@@ -306,38 +337,6 @@ export const useMultiplayerCrashGame = () => {
       gameEngineErrorCount.current++;
     }
   }, [fetchGameHistory, gameState, isBetPlaced, playerWin, startMultiplierAnimation, updateGameHistory]);
-  
-  // Fetch active players for the current round
-  const fetchPlayers = useCallback(async () => {
-    if (!currentRound || !currentRound.round_id) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('player_bets')
-        .select(`
-          id,
-          bet_amount,
-          cashed_out_multiplier,
-          profiles:user_id (username)
-        `)
-        .eq('round_id', currentRound.round_id);
-        
-      if (error) throw error;
-      
-      if (data) {
-        const formattedPlayers = data.map((bet: any) => ({
-          id: bet.id,
-          name: bet.profiles?.username || 'Anonymous',
-          amount: bet.bet_amount,
-          multiplier: bet.cashed_out_multiplier
-        }));
-        
-        setPlayers(formattedPlayers);
-      }
-    } catch (err) {
-      console.error('Error fetching players:', err);
-    }
-  }, [currentRound]);
   
   // Set up polling and clean up on unmount
   useEffect(() => {
