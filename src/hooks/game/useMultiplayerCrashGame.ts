@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -30,6 +29,10 @@ export const useMultiplayerCrashGame = () => {
   const lastMultiplierRef = useRef<number>(1); // Track the last multiplier to prevent decreases
   const startTimeRef = useRef<number | null>(null); // Track animation start time
   const growthRateRef = useRef<number>(0.06); // Growth rate for multiplier (adjust for faster/slower)
+  
+  // New ref for smooth countdown interpolation
+  const lastCountdownUpdateRef = useRef<number | null>(null);
+  const serverCountdownValueRef = useRef<number | null>(5);
 
   // Calculate multiplier based on start time - now uses client-side animation for smoothness
   const calculateCurrentMultiplier = useCallback((timestamp: number): number => {
@@ -211,7 +214,7 @@ export const useMultiplayerCrashGame = () => {
           id: bet.id,
           name: bet.user_id.substring(0, 8) || 'Anonymous',
           amount: bet.bet_amount,
-          multiplier: bet.cashed_out_multiplier,
+          multiplier: bet.cash_out_multiplier,
           userId: bet.user_id
         }));
         
@@ -290,7 +293,10 @@ export const useMultiplayerCrashGame = () => {
             });
             
             // Start countdown for next round with extended cooldown (5 seconds - standardized)
-            setCountdownTimer(5);
+            const countdown = data.next_round.countdown || 5;
+            setCountdownTimer(countdown);
+            serverCountdownValueRef.current = countdown;
+            lastCountdownUpdateRef.current = Date.now();
             
             // If we have a player bet and no win, they lost
             if (isBetPlaced && playerWin === null) {
@@ -321,10 +327,17 @@ export const useMultiplayerCrashGame = () => {
         if (gameState !== GAME_STATE.COUNTDOWN) {
           console.log("Game is now in COUNTDOWN state");
           setGameState(GAME_STATE.COUNTDOWN);
-          setCountdownTimer(data.countdown || 5); // Default to 5 seconds if server doesn't specify
+          
+          const countdown = data.countdown || 5;
+          setCountdownTimer(countdown);
+          serverCountdownValueRef.current = countdown;
+          lastCountdownUpdateRef.current = Date.now();
         } else {
-          // Just update the timer
-          setCountdownTimer(data.countdown || 5); // Default to 5 seconds if server doesn't specify
+          // Just update the timer and store server value
+          const countdown = data.countdown || 5;
+          setCountdownTimer(countdown);
+          serverCountdownValueRef.current = countdown;
+          lastCountdownUpdateRef.current = Date.now();
         }
       } else if (data.status === 'started') {
         setCurrentRound(data);
@@ -353,7 +366,10 @@ export const useMultiplayerCrashGame = () => {
         });
         
         setGameState(GAME_STATE.COUNTDOWN);
-        setCountdownTimer(data.countdown || 5); // Default to 5 seconds if server doesn't specify
+        const countdown = data.countdown || 5;
+        setCountdownTimer(countdown);
+        serverCountdownValueRef.current = countdown;
+        lastCountdownUpdateRef.current = Date.now();
         fetchGameHistory();
       }
     } catch (error) {
@@ -551,6 +567,48 @@ export const useMultiplayerCrashGame = () => {
       throw err;
     }
   }, [currentMultiplier, currentRound, fetchPlayers, gameState, isAuthenticated, isBetPlaced, isRoundActive, playerBet, playerWin]);
+  
+  // NEW: Client-side countdown interpolation
+  useEffect(() => {
+    // Only create interpolation timer when in COUNTDOWN state
+    if (gameState === GAME_STATE.COUNTDOWN && serverCountdownValueRef.current !== null) {
+      // Clear any existing interval
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+      
+      // Create a high-precision interval for smooth countdown
+      countdownIntervalRef.current = window.setInterval(() => {
+        if (lastCountdownUpdateRef.current && serverCountdownValueRef.current !== null) {
+          // Calculate elapsed time since last server update
+          const elapsedMs = Date.now() - lastCountdownUpdateRef.current;
+          const elapsedSeconds = elapsedMs / 1000;
+          
+          // Calculate new countdown value based on server value minus elapsed time
+          const interpolatedValue = Math.max(0, serverCountdownValueRef.current - elapsedSeconds);
+          
+          // Round to one decimal place for display consistency
+          const roundedValue = Math.round(interpolatedValue * 10) / 10;
+          
+          // Update state if different from current value
+          setCountdownTimer(roundedValue);
+          
+          // If countdown reaches zero, clear the interval
+          if (roundedValue <= 0) {
+            if (countdownIntervalRef.current) {
+              clearInterval(countdownIntervalRef.current);
+            }
+          }
+        }
+      }, 100); // Update 10 times per second for smooth countdown
+      
+      return () => {
+        if (countdownIntervalRef.current) {
+          clearInterval(countdownIntervalRef.current);
+        }
+      };
+    }
+  }, [gameState]);
   
   // Set up polling and clean up on unmount
   useEffect(() => {

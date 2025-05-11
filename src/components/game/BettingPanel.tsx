@@ -86,8 +86,9 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
     // If there's an input error, always disable
     if (inputError) return true;
     
-    // If countdown is active but not showing a negative value
-    if (remainingTime !== null && remainingTime > 0) return true;
+    // If countdown is active and greater than 0.1 (nearly finished), disable button
+    // This ensures we enable the button just as the countdown is about to complete
+    if (remainingTime !== null && remainingTime > 0.1) return true;
     
     // If currently playing and no bet placed, disable placing bets
     if (isPlaying) return true;

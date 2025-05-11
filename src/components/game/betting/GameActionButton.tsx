@@ -22,7 +22,7 @@ const GameActionButton: React.FC<GameActionButtonProps> = ({
   isBetPlaced
 }) => {
   const formatTime = (seconds: number): string => {
-    // Ensure timer doesn't show negative values and always shows exactly one decimal place
+    // Ensure timer always shows exactly one decimal place for perfect sync with CountdownDisplay
     const time = Math.max(0, seconds);
     return time.toFixed(1);
   };
