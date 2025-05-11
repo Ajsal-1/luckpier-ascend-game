@@ -157,6 +157,7 @@ const CrashGame: React.FC = () => {
             currentMultiplier={currentMultiplier}
             onMultiplierUpdate={() => {}} // This is now handled by the server
             gameState={gameState}
+            remainingTime={countdownTimer}
           />
         </div>
         

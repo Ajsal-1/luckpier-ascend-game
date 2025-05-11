@@ -16,6 +16,7 @@ const Multiplier: React.FC<MultiplierProps> = ({
   currentMultiplier,
   onMultiplierUpdate,
   gameState,
+  remainingTime,
 }) => {
   // Simple wrapper that directly passes values to display components
   return (
@@ -34,7 +35,8 @@ const Multiplier: React.FC<MultiplierProps> = ({
       {/* Countdown Display - Now with smoother countdown animation */}
       <CountdownDisplay 
         gameState={gameState as GAME_STATE} 
-        displayValue={currentMultiplier.toFixed(2) + "x"} 
+        displayValue={currentMultiplier.toFixed(2) + "x"}
+        remainingTime={remainingTime}
       />
       
       {/* Main multiplier display and status messages */}

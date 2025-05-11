@@ -7,24 +7,33 @@ import { Progress } from '@/components/ui/progress';
 interface CountdownDisplayProps {
   gameState: GAME_STATE;
   displayValue: string;
+  remainingTime?: number | null;
 }
 
 const CountdownDisplay: React.FC<CountdownDisplayProps> = ({
   gameState,
-  displayValue
+  displayValue,
+  remainingTime
 }) => {
   // Only show the countdown when in COUNTDOWN or WAITING state
   if (gameState !== GAME_STATE.COUNTDOWN && gameState !== GAME_STATE.WAITING) {
     return null;
   }
   
-  // Extract numerical value from displayValue if it's in the form "1.00x"
-  const [countdown, setCountdown] = useState<number>(5);
+  // Use the server-provided countdown or default to 5
+  const [countdown, setCountdown] = useState<number>(remainingTime || 5);
   const [progress, setProgress] = useState<number>(0);
   
   useEffect(() => {
-    // Start with 5 seconds max countdown
-    let startCountdown = 5;
+    // Update countdown based on props when it changes
+    if (remainingTime !== undefined && remainingTime !== null) {
+      setCountdown(remainingTime);
+    }
+  }, [remainingTime]);
+
+  useEffect(() => {
+    // Start with server-provided countdown or default to 5 seconds
+    let startCountdown = remainingTime || 5;
     setCountdown(startCountdown);
     setProgress(0);
     
@@ -52,7 +61,7 @@ const CountdownDisplay: React.FC<CountdownDisplayProps> = ({
       clearInterval(countdownInterval);
       clearInterval(progressInterval);
     };
-  }, [gameState]); // Reset when game state changes
+  }, [gameState, remainingTime]); // Reset when game state or remainingTime changes
 
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/30 backdrop-blur-sm rounded-md">
