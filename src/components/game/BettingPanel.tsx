@@ -77,8 +77,11 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
 
   // Determine if button should be disabled based on game state and countdown
   const isButtonDisabled = () => {
-    // If bet is already placed, disable
-    if (isBetPlaced) return true;
+    // If bet is already placed, check if we're in playing state
+    if (isBetPlaced) {
+      // Button should only be disabled in playing state if the user won or game crashed
+      return !isPlaying || hasWon || isCrashed;
+    }
     
     // If there's an input error, always disable
     if (inputError) return true;
@@ -86,7 +89,7 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
     // If countdown is active but not showing a negative value
     if (remainingTime !== null && remainingTime > 0) return true;
     
-    // If currently playing, disable placing bets
+    // If currently playing and no bet placed, disable placing bets
     if (isPlaying) return true;
     
     // Otherwise enable
@@ -139,7 +142,7 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
           {/* Spacer */}
           <div className="flex-grow"></div>
           
-          {/* Action Buttons - Now passing isBetPlaced prop */}
+          {/* Action Buttons */}
           <div className="pt-2">
             <GameActionButton 
               isPlaying={isPlaying}
@@ -148,7 +151,7 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
               hasWon={hasWon}
               isCrashed={isCrashed}
               isBetPlaced={isBetPlaced}
-              onClick={isPlaying ? onCashout : handlePlaceBet}
+              onClick={isPlaying && isBetPlaced ? onCashout : handlePlaceBet}
             />
           </div>
         </div>

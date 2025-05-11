@@ -9,7 +9,7 @@ interface GameActionButtonProps {
   hasWon: boolean;
   isCrashed: boolean;
   onClick: () => void;
-  isBetPlaced: boolean; // Add this prop to check if a bet is placed
+  isBetPlaced: boolean;
 }
 
 const GameActionButton: React.FC<GameActionButtonProps> = ({
@@ -26,10 +26,25 @@ const GameActionButton: React.FC<GameActionButtonProps> = ({
     return Math.max(0, seconds).toFixed(1);
   };
   
-  // Show "Cash Out" button only when the game is playing AND a bet has been placed
+  // FIXED: Only show "Cash Out" when the game is playing AND a bet has been placed
   const showCashOut = isPlaying && isBetPlaced;
   
-  if (!showCashOut) {
+  if (showCashOut) {
+    return (
+      <button 
+        className={cn(
+          "w-full py-3 text-base font-medium rounded-md transition-all",
+          hasWon || isCrashed ? 
+            "bg-amber-600/50 text-white/70 cursor-not-allowed" : 
+            "bg-amber-500 hover:bg-amber-600 text-white animate-pulse"
+        )}
+        onClick={onClick}
+        disabled={hasWon || isCrashed}
+      >
+        Cash Out
+      </button>
+    );
+  } else {
     return (
       <button 
         className={cn(
@@ -44,21 +59,6 @@ const GameActionButton: React.FC<GameActionButtonProps> = ({
         {remainingTime !== null && remainingTime > 0
           ? `Place Bet (${formatTime(remainingTime)}s)`
           : "Place Bet"}
-      </button>
-    );
-  } else {
-    return (
-      <button 
-        className={cn(
-          "w-full py-3 text-base font-medium rounded-md transition-all",
-          hasWon || isCrashed ? 
-            "bg-amber-600/50 text-white/70 cursor-not-allowed" : 
-            "bg-amber-500 hover:bg-amber-600 text-white animate-pulse"
-        )}
-        onClick={onClick}
-        disabled={hasWon || isCrashed}
-      >
-        Cash Out
       </button>
     );
   }

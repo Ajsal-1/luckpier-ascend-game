@@ -18,46 +18,36 @@ const Multiplier: React.FC<MultiplierProps> = ({
   onMultiplierUpdate,
   gameState,
 }) => {
+  // Simple wrapper that directly passes values to display components
+  // Chart data is no longer used, focusing only on the multiplier display
   return (
-    <MultiplierLogic
-      isPlaying={isPlaying}
-      isCrashed={isCrashed}
-      winValue={winValue}
-      crashValue={crashValue}
-      onCrash={onCrash}
-      currentMultiplier={currentMultiplier}
-      onMultiplierUpdate={onMultiplierUpdate}
-    >
-      {({ displayValue, chartData, crashEffectActive }) => (
-        <div 
-          className={cn(
-            "relative flex items-center justify-center w-full h-full min-h-[240px] md:min-h-[320px]",
-            (isCrashed || winValue) ? "animate-pulse-win" : ""
-          )}
-        >
-          {/* Crash Effects */}
-          <CrashEffects 
-            isCrashed={isCrashed}
-            crashEffectActive={crashEffectActive}
-          />
-
-          {/* Countdown Display */}
-          <CountdownDisplay 
-            gameState={gameState as GAME_STATE} 
-            displayValue={displayValue} 
-          />
-          
-          {/* Main multiplier display and status messages */}
-          <MultiplierDisplay 
-            displayValue={displayValue}
-            isPlaying={isPlaying}
-            isCrashed={isCrashed}
-            winValue={winValue}
-            crashEffectActive={crashEffectActive}
-          />
-        </div>
+    <div 
+      className={cn(
+        "relative flex items-center justify-center w-full h-full min-h-[240px] md:min-h-[320px]",
+        (isCrashed || winValue) ? "animate-pulse-win" : ""
       )}
-    </MultiplierLogic>
+    >
+      {/* Crash Effects */}
+      <CrashEffects 
+        isCrashed={isCrashed}
+        crashEffectActive={isCrashed} // Simplified - show effects whenever crashed
+      />
+
+      {/* Countdown Display */}
+      <CountdownDisplay 
+        gameState={gameState as GAME_STATE} 
+        displayValue={currentMultiplier.toFixed(2) + "x"} 
+      />
+      
+      {/* Main multiplier display and status messages */}
+      <MultiplierDisplay 
+        displayValue={currentMultiplier.toFixed(2) + "x"}
+        isPlaying={isPlaying}
+        isCrashed={isCrashed}
+        winValue={winValue}
+        crashEffectActive={isCrashed} // Simplified - show effects whenever crashed
+      />
+    </div>
   );
 };
 

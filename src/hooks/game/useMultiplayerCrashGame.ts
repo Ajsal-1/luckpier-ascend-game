@@ -104,7 +104,7 @@ export const useMultiplayerCrashGame = () => {
     fetchGameHistory();
   }, [fetchGameHistory]);
   
-  // Update multiplier animation
+  // Update multiplier animation - MODIFIED to ensure multiplier never decreases
   const updateMultiplier = useCallback(() => {
     if (currentRound && currentRound.status === 'running' && currentRound.start_time) {
       const newMultiplier = calculateCurrentMultiplier(currentRound.start_time);
@@ -187,14 +187,14 @@ export const useMultiplayerCrashGame = () => {
     if (!currentRound || !currentRound.round_id) return;
     
     try {
+      // FIXED: Use correct query that doesn't try to join with profiles
       const { data, error } = await supabase
         .from('player_bets')
         .select(`
           id,
           bet_amount,
           cashed_out_multiplier,
-          user_id,
-          profiles (username)
+          user_id
         `)
         .eq('round_id', currentRound.round_id);
         
@@ -203,7 +203,7 @@ export const useMultiplayerCrashGame = () => {
       if (data) {
         const formattedPlayers = data.map((bet: any) => ({
           id: bet.id,
-          name: bet.profiles?.username || 'Anonymous',
+          name: bet.user_id.substring(0, 8) || 'Anonymous', // Use part of user_id instead of username
           amount: bet.bet_amount,
           multiplier: bet.cashed_out_multiplier,
           userId: bet.user_id
@@ -226,7 +226,7 @@ export const useMultiplayerCrashGame = () => {
         method: 'GET' // Explicitly use GET method
       });
       
-      // Reset error counter on successful call
+      // Handle errors better
       if (response.error) {
         console.error(`Error from crash-game-engine:`, response.error);
         gameEngineErrorCount.current++;
@@ -257,7 +257,7 @@ export const useMultiplayerCrashGame = () => {
       if (data.status === 'playing') {
         setCurrentRound(data);
         
-        // Ensure multiplier never decreases
+        // Ensure multiplier never decreases by comparing with stored last value
         if (data.current_multiplier > lastMultiplierRef.current) {
           setCurrentMultiplier(data.current_multiplier);
           lastMultiplierRef.current = data.current_multiplier;
@@ -483,7 +483,7 @@ export const useMultiplayerCrashGame = () => {
     };
   }, [countdownTimer, gameState]);
   
-  // Place bet function
+  // Place bet function - IMPROVED ERROR HANDLING
   const handlePlaceBet = useCallback(async (amount: number, autoCashoutAt?: number | null) => {
     if (!isAuthenticated) {
       toast.error('Please sign in to place bets', { position: 'top-center' });
@@ -524,13 +524,25 @@ export const useMultiplayerCrashGame = () => {
         }
       });
       
-      if (response.error || (response.data && response.data.error)) {
-        const errorMessage = response.data?.error || response.error?.message || 'Failed to place bet';
-        throw new Error(errorMessage);
+      console.log("Bet response:", response); // Log full response for debugging
+      
+      if (response.error) {
+        const errorMessage = response.error.message || 'Failed to place bet';
+        toast.error(`Error: ${errorMessage}`, { position: 'top-center' });
+        console.error('Error placing bet:', response.error);
+        return;
+      }
+      
+      if (response.data && response.data.error) {
+        toast.error(`Server error: ${response.data.error}`, { position: 'top-center' });
+        console.error('Server error placing bet:', response.data.error);
+        return;
       }
       
       if (!response.data || !response.data.success) {
-        throw new Error('Failed to place bet - no success response');
+        toast.error('Failed to place bet - no success response', { position: 'top-center' });
+        console.error('Failed to place bet - no success response');
+        return;
       }
       
       console.log(`Bet placed: $${amount} with auto-cashout at ${autoCashoutAt || 'none'}`);
@@ -598,13 +610,25 @@ export const useMultiplayerCrashGame = () => {
         }
       });
       
-      if (response.error || (response.data && response.data.error)) {
-        const errorMessage = response.data?.error || response.error?.message || 'Failed to cash out';
-        throw new Error(errorMessage);
+      console.log("Cashout response:", response); // Log full response for debugging
+      
+      if (response.error) {
+        const errorMessage = response.error.message || 'Failed to cash out';
+        toast.error(`Error: ${errorMessage}`, { position: 'top-center' });
+        console.error('Error cashing out:', response.error);
+        return;
+      }
+      
+      if (response.data && response.data.error) {
+        toast.error(`Server error: ${response.data.error}`, { position: 'top-center' });
+        console.error('Server error cashing out:', response.data.error);
+        return;
       }
       
       if (!response.data || !response.data.success) {
-        throw new Error('Failed to cash out - no success response');
+        toast.error('Failed to cash out - no success response', { position: 'top-center' });
+        console.error('Failed to cash out - no success response');
+        return;
       }
       
       // Update local state
