@@ -1,3 +1,7 @@
+export interface ChartDataPoint {
+  x: number;
+  y: number;
+}
 
 export interface MultiplierProps {
   isPlaying: boolean;
@@ -7,11 +11,6 @@ export interface MultiplierProps {
   onCrash: (value: number) => void;
   currentMultiplier: number;
   onMultiplierUpdate: (multiplier: number) => void;
-  gameState: string | import('@/hooks/game/types').GAME_STATE;
-  remainingTime?: number | null;
-}
-
-export interface ChartDataPoint {
-  x: number;
-  y: number;
+  gameState: string;
+  remainingTime: number | null;
 }

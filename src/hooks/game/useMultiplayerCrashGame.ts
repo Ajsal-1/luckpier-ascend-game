@@ -28,12 +28,17 @@ export const useMultiplayerCrashGame = () => {
   const postCrashCooldownTime = useRef<number>(5); // 5 seconds cooldown after crash (standardized)
   const lastMultiplierRef = useRef<number>(1); // Track the last multiplier to prevent decreases
   const startTimeRef = useRef<number | null>(null); // Track animation start time
-  const growthRateRef = useRef<number>(0.06); // Growth rate for multiplier (adjust for faster/slower)
+  const growthRateRef = useRef<number>(0.06); // Growth rate for multiplier - FIXED to 0.06 to match the server
   
   // New ref for smooth countdown interpolation
   const lastCountdownUpdateRef = useRef<number | null>(null);
   const serverCountdownValueRef = useRef<number | null>(5);
-
+  
+  // Add a debounce mechanism to smooth multiplier updates
+  const multiplierUpdateTimeoutRef = useRef<number | null>(null);
+  const pendingMultiplierUpdatesRef = useRef<number[]>([]);
+  const lastServerMultiplierRef = useRef<number>(1);
+  
   // Calculate multiplier based on start time - only uses client-side animation for smoothness
   const calculateCurrentMultiplier = useCallback((timestamp: number): number => {
     // Only calculate if we have a start time
@@ -46,12 +51,14 @@ export const useMultiplayerCrashGame = () => {
     
     // Using the formula: multiplier = e^(growthRate * elapsedSeconds)
     // This creates an exponential curve that grows faster over time
+    // IMPORTANT: Using growth rate of 0.06 to match the server
     const multiplier = Math.pow(Math.E, growthRateRef.current * elapsedSeconds);
     
     // Format to 2 decimal places
     const formattedMultiplier = Math.floor(multiplier * 100) / 100;
     
-    return Math.max(1, formattedMultiplier);
+    // Never decrease from previous value - this is critical
+    return Math.max(lastMultiplierRef.current, formattedMultiplier);
   }, []);
 
   // Fetch game history
@@ -114,6 +121,28 @@ export const useMultiplayerCrashGame = () => {
     fetchGameHistory();
   }, [fetchGameHistory]);
   
+  // Process pending multiplier updates with debouncing to smooth animations
+  const processPendingMultiplierUpdates = useCallback(() => {
+    if (pendingMultiplierUpdatesRef.current.length > 0) {
+      // Find the maximum value in the pending updates
+      const maxMultiplier = Math.max(...pendingMultiplierUpdatesRef.current);
+      
+      // Only update if the new value is higher than the previous one
+      // This is CRITICAL to prevent decreasing values
+      if (maxMultiplier > lastMultiplierRef.current) {
+        setCurrentMultiplier(maxMultiplier);
+        lastMultiplierRef.current = maxMultiplier;
+        console.log(`Updated multiplier to: ${maxMultiplier.toFixed(2)}x`);
+      }
+      
+      // Clear pending updates
+      pendingMultiplierUpdatesRef.current = [];
+    }
+    
+    // Clear timeout reference
+    multiplierUpdateTimeoutRef.current = null;
+  }, []);
+  
   // Smooth multiplier animation using requestAnimationFrame for more precise control
   const animateMultiplier = useCallback((timestamp: number) => {
     // If this is the first frame, set the start time
@@ -126,7 +155,17 @@ export const useMultiplayerCrashGame = () => {
     
     // Only update if it's higher than the previous one - ensures smooth increasing values
     if (newMultiplier > lastMultiplierRef.current) {
-      setCurrentMultiplier(newMultiplier);
+      // Queue the update with debouncing
+      pendingMultiplierUpdatesRef.current.push(newMultiplier);
+      
+      // Process updates with debouncing
+      if (!multiplierUpdateTimeoutRef.current) {
+        multiplierUpdateTimeoutRef.current = window.setTimeout(
+          processPendingMultiplierUpdates, 
+          50 // Process updates every 50ms for smoother visual
+        );
+      }
+      
       lastMultiplierRef.current = newMultiplier;
     }
     
@@ -147,19 +186,27 @@ export const useMultiplayerCrashGame = () => {
     
     // Continue the animation
     animationFrameRef.current = requestAnimationFrame(animateMultiplier);
-  }, [calculateCurrentMultiplier, crashPoint, gameState]);
+  }, [calculateCurrentMultiplier, crashPoint, gameState, processPendingMultiplierUpdates]);
   
   // Start the multiplier animation
   const startMultiplierAnimation = useCallback(() => {
     // Reset the multiplier and animation state
     setCurrentMultiplier(1);
     lastMultiplierRef.current = 1;
+    lastServerMultiplierRef.current = 1;
     startTimeRef.current = null;
     
-    // Clean up any existing animation
+    // Clear any existing animation
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
     }
+    
+    // Clear any pending multiplier updates
+    if (multiplierUpdateTimeoutRef.current) {
+      clearTimeout(multiplierUpdateTimeoutRef.current);
+      multiplierUpdateTimeoutRef.current = null;
+    }
+    pendingMultiplierUpdatesRef.current = [];
     
     // Start a new animation
     animationFrameRef.current = requestAnimationFrame(animateMultiplier);
@@ -269,6 +316,26 @@ export const useMultiplayerCrashGame = () => {
           setIsRoundActive(true);
           // Start the multiplier animation for all users whether they bet or not
           startMultiplierAnimation();
+        } else if (data.current_multiplier) {
+          // This is a critical fix - only update server multiplier if it's higher than our last value
+          // Add to the queue of pending updates if it's higher than what we've seen
+          if (data.current_multiplier > lastServerMultiplierRef.current) {
+            console.log(`Server reports multiplier: ${data.current_multiplier.toFixed(2)}x`);
+            lastServerMultiplierRef.current = data.current_multiplier;
+            
+            // Only queue if higher than our current display
+            if (data.current_multiplier > lastMultiplierRef.current) {
+              pendingMultiplierUpdatesRef.current.push(data.current_multiplier);
+              
+              // Process with debounce
+              if (!multiplierUpdateTimeoutRef.current) {
+                multiplierUpdateTimeoutRef.current = window.setTimeout(
+                  processPendingMultiplierUpdates, 
+                  50 // Smaller timeout for smoother updates
+                );
+              }
+            }
+          }
         }
       } else if (data.status === 'crashed') {
         setCrashPoint(data.crashPoint);
@@ -349,8 +416,16 @@ export const useMultiplayerCrashGame = () => {
           setIsRoundActive(true);
           setCurrentMultiplier(1);
           lastMultiplierRef.current = 1; // Reset the last multiplier
+          lastServerMultiplierRef.current = 1; // Reset server multiplier
           setCrashPoint(null);
           startTimeRef.current = null; // Reset animation start time
+          
+          // Clear pending multiplier updates
+          if (multiplierUpdateTimeoutRef.current) {
+            clearTimeout(multiplierUpdateTimeoutRef.current);
+            multiplierUpdateTimeoutRef.current = null;
+          }
+          pendingMultiplierUpdatesRef.current = [];
           
           // Start the multiplier animation for all users
           startMultiplierAnimation();
@@ -376,7 +451,7 @@ export const useMultiplayerCrashGame = () => {
       console.error('Error in pollGameEngine:', error);
       gameEngineErrorCount.current++;
     }
-  }, [fetchGameHistory, gameState, isBetPlaced, playerWin, startMultiplierAnimation, updateGameHistory]);
+  }, [fetchGameHistory, gameState, isBetPlaced, playerWin, processPendingMultiplierUpdates, startMultiplierAnimation, updateGameHistory]);
   
   // Place bet function - IMPROVED ERROR HANDLING
   const handlePlaceBet = useCallback(async (amount: number, autoCashoutAt?: number | null) => {
@@ -630,6 +705,10 @@ export const useMultiplayerCrashGame = () => {
       }
       if (countdownIntervalRef.current) {
         clearInterval(countdownIntervalRef.current);
+      }
+      // Clean up multiplier debounce timeout
+      if (multiplierUpdateTimeoutRef.current) {
+        clearTimeout(multiplierUpdateTimeoutRef.current);
       }
     };
   }, [fetchGameHistory, pollGameEngine]);

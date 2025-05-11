@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { formatMultiplier } from './utils';
 import { ChartDataPoint } from './types';
@@ -34,11 +33,13 @@ const MultiplierLogic: React.FC<MultiplierLogicProps> = ({
   const animationRef = useRef<number | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const hasCrashedRef = useRef<boolean>(false);
+  const lastMultiplierRef = useRef<number>(1);
   
-  // Growth factor - higher = faster rise (previously 0.15)
-  // Using 0.18 for even more exciting gameplay
-  const growthFactor = 0.18;
+  // IMPORTANT: Match the server-side growth factor (0.06) for consistent experience
+  // This is synchronized with the growth rate used in the server
+  const growthFactor = 0.06;
 
+  // Smoother animation with better frame timing
   const animateMultiplier = (timestamp: number) => {
     if (!startTimeRef.current) {
       startTimeRef.current = timestamp;
@@ -47,21 +48,31 @@ const MultiplierLogic: React.FC<MultiplierLogicProps> = ({
     const elapsed = timestamp - startTimeRef.current;
     
     // Calculate new multiplier using exponential growth formula
-    // Similar to how stake.com calculates it
-    // This creates a curve that grows faster over time
+    // Synchronized with server-side calculation
     const elapsedInSeconds = elapsed / 1000;
     const newMultiplier = Math.pow(Math.E, growthFactor * elapsedInSeconds);
     
     // Round to 2 decimal places for display
     const roundedMultiplier = Math.floor(newMultiplier * 100) / 100;
     
-    // Update chart data with new point
+    // IMPORTANT: Never decrease multiplier value during animation
+    // Only update if the new value is higher than the previous one
+    if (roundedMultiplier <= lastMultiplierRef.current) {
+      // Continue the animation without updating the value
+      animationRef.current = requestAnimationFrame(animateMultiplier);
+      return;
+    }
+    
+    // Update the reference for comparison in the next frame
+    lastMultiplierRef.current = roundedMultiplier;
+    
+    // Update chart data with new point - limit the number of points for smooth animation
     setChartData(prev => {
       // Keep a rolling window of points for performance
       const newData = [...prev, { x: elapsedInSeconds, y: roundedMultiplier }];
-      // Only keep the most recent 200 points for performance
-      if (newData.length > 200) {
-        return newData.slice(newData.length - 200);
+      // Only keep the most recent 100 points for smoother rendering
+      if (newData.length > 100) {
+        return newData.slice(newData.length - 100);
       }
       return newData;
     });
@@ -90,7 +101,7 @@ const MultiplierLogic: React.FC<MultiplierLogicProps> = ({
     onMultiplierUpdate(roundedMultiplier);
     setDisplayValue(formatMultiplier(roundedMultiplier));
     
-    // Continue the animation loop
+    // Continue the animation loop with more consistent timing
     animationRef.current = requestAnimationFrame(animateMultiplier);
   };
 
@@ -104,6 +115,7 @@ const MultiplierLogic: React.FC<MultiplierLogicProps> = ({
       
       // Reset the timer and chart
       startTimeRef.current = null;
+      lastMultiplierRef.current = 1; // Reset last multiplier ref
       setChartData([{ x: 0, y: 1 }]); // Initialize with starting point
       
       // Start the animation
@@ -117,7 +129,6 @@ const MultiplierLogic: React.FC<MultiplierLogicProps> = ({
       setCrashEffectActive(true); // Activate crash effect
       
       // Reset crash effect after animation completes
-      // Extended from 2 seconds to 5 seconds for more visibility
       const resetTimer = setTimeout(() => {
         setCrashEffectActive(false);
       }, 5000); // 5 seconds of crash effect
@@ -135,6 +146,7 @@ const MultiplierLogic: React.FC<MultiplierLogicProps> = ({
       setDisplayValue("1.00x");
       setChartData([]);
       setCrashEffectActive(false);
+      lastMultiplierRef.current = 1; // Reset last multiplier ref
     }
 
     // Clean up animation on unmount or state change

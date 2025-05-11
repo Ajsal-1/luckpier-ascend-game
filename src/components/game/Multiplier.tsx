@@ -4,6 +4,9 @@ import { cn } from '@/lib/utils';
 import CrashEffects from './multiplier/CrashEffects';
 import CountdownDisplay from './multiplier/CountdownDisplay';
 import MultiplierDisplay from './multiplier/MultiplierDisplay';
+import MultiplierChart from './multiplier/MultiplierChart';
+import MultiplierLogic from './multiplier/MultiplierLogic';
+import FloatingMultiplier from './multiplier/FloatingMultiplier';
 import { MultiplierProps } from './multiplier/types';
 import { GAME_STATE } from '@/hooks/game/types';
 
@@ -18,7 +21,6 @@ const Multiplier: React.FC<MultiplierProps> = ({
   gameState,
   remainingTime,
 }) => {
-  // Simple wrapper that directly passes values to display components
   return (
     <div 
       className={cn(
@@ -26,27 +28,60 @@ const Multiplier: React.FC<MultiplierProps> = ({
         (isCrashed || winValue) ? "animate-pulse-win" : ""
       )}
     >
-      {/* Crash Effects */}
-      <CrashEffects 
-        isCrashed={isCrashed}
-        crashEffectActive={isCrashed} // Simplified - show effects whenever crashed
-      />
-
-      {/* Countdown Display - Now directly using server-provided countdown */}
-      <CountdownDisplay 
-        gameState={gameState as GAME_STATE} 
-        displayValue={currentMultiplier.toFixed(2) + "x"}
-        remainingTime={remainingTime}
-      />
-      
-      {/* Main multiplier display and status messages */}
-      <MultiplierDisplay 
-        displayValue={currentMultiplier.toFixed(2) + "x"}
+      <MultiplierLogic
         isPlaying={isPlaying}
         isCrashed={isCrashed}
         winValue={winValue}
-        crashEffectActive={isCrashed} // Simplified - show effects whenever crashed
-      />
+        crashValue={crashValue}
+        onCrash={onCrash}
+        currentMultiplier={currentMultiplier}
+        onMultiplierUpdate={onMultiplierUpdate}
+      >
+        {({ displayValue, chartData, crashEffectActive }) => (
+          <>
+            {/* Background multiplier chart */}
+            <div className="absolute inset-0 z-0 opacity-30">
+              <MultiplierChart 
+                chartData={chartData}
+                isCrashed={isCrashed}
+                winValue={winValue}
+                crashEffectActive={crashEffectActive}
+              />
+            </div>
+            
+            {/* Crash Effects */}
+            <CrashEffects 
+              isCrashed={isCrashed}
+              crashEffectActive={crashEffectActive}
+            />
+
+            {/* Countdown Display - Using server-provided countdown */}
+            <CountdownDisplay 
+              gameState={gameState as GAME_STATE} 
+              displayValue={displayValue}
+              remainingTime={remainingTime}
+            />
+            
+            {/* Floating multiplier indicator showing the current value */}
+            <FloatingMultiplier
+              displayValue={displayValue}
+              currentMultiplier={currentMultiplier}
+              isCrashed={isCrashed}
+              winValue={winValue}
+              crashEffectActive={crashEffectActive}
+            />
+            
+            {/* Main multiplier display and status messages */}
+            <MultiplierDisplay 
+              displayValue={displayValue}
+              isPlaying={isPlaying}
+              isCrashed={isCrashed}
+              winValue={winValue}
+              crashEffectActive={crashEffectActive}
+            />
+          </>
+        )}
+      </MultiplierLogic>
     </div>
   );
 };
