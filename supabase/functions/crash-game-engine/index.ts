@@ -117,7 +117,7 @@ serve(async (req) => {
               .eq('round_id', currentRound.id)
               .is('cashout_multiplier', null);
               
-            // Create a new round to start in 5 seconds
+            // Create a new round to start in 3 seconds (changed from 5 seconds)
             const { data: newRound } = await supabase.rpc('create_new_crash_round');
             
             return new Response(

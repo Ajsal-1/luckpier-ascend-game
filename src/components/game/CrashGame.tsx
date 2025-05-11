@@ -28,6 +28,7 @@ const CrashGame: React.FC = () => {
     players,
     handlePlaceBet,
     handleCashout,
+    currentRound,
   } = useMultiplayerCrashGame();
 
   const onPlaceBet = (amount: number, autoCashout?: number | null) => {
@@ -66,15 +67,27 @@ const CrashGame: React.FC = () => {
     }, 1000);
   };
 
+  const getGameStateMessage = () => {
+    switch(gameState) {
+      case GAME_STATE.WAITING:
+        return "Waiting for next round...";
+      case GAME_STATE.COUNTDOWN:
+        return `Starting in ${countdownTimer?.toFixed(1)}s`;
+      case GAME_STATE.PLAYING:
+        return "Game in progress";
+      case GAME_STATE.CRASHED:
+        return "Game crashed";
+      default:
+        return "Unknown game state";
+    }
+  };
+
   return (
     <div className="w-full">
       {/* Game status indicator */}
       <div className="w-full flex justify-between items-center mb-2">
         <div className="text-sm font-medium">
-          {gameState === GAME_STATE.WAITING && "Waiting for next round..."}
-          {gameState === GAME_STATE.COUNTDOWN && `Starting in ${countdownTimer?.toFixed(1)}s`}
-          {gameState === GAME_STATE.PLAYING && "Game in progress"}
-          {gameState === GAME_STATE.CRASHED && "Game crashed"}
+          {getGameStateMessage()}
         </div>
         <div className="text-sm font-medium">
           Players: {players.length}
