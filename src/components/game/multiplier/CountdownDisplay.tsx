@@ -36,7 +36,7 @@ const CountdownDisplay: React.FC<CountdownDisplayProps> = ({
             exit={{ scale: 1.2, opacity: 0 }}
             transition={{ 
               duration: 0.5,
-              repeat: countdownValue === "1" ? 0 : Infinity,
+              repeat: countdownValue === 1 ? 0 : Infinity,
               repeatType: "reverse"
             }}
             key={displayValue} // Force re-animation on value change

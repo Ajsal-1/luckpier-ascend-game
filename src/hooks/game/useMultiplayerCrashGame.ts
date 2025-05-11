@@ -26,6 +26,36 @@ export const useMultiplayerCrashGame = () => {
   const countdownIntervalRef = useRef<number | null>(null);
   const gameEngineErrorCount = useRef<number>(0);
   
+  // Update game history when game crashes
+  const updateGameHistory = useCallback((multiplier: number) => {
+    const timestamp = new Date().toISOString();
+    
+    setGameHistory(prev => {
+      const newHistory = [
+        { 
+          id: `game-${Date.now()}`, 
+          multiplier, 
+          timestamp 
+        },
+        ...prev.slice(0, 19) // Keep only the 20 most recent games
+      ];
+      return newHistory;
+    });
+    
+    // Update players
+    setPlayers(prev => 
+      prev.map(player => {
+        if (player.multiplier === null) {
+          return { ...player, multiplier: 0 }; // Lost
+        }
+        return player;
+      })
+    );
+    
+    // Re-fetch history to sync with server
+    fetchGameHistory();
+  }, []);
+  
   // Fetch user authentication status
   useEffect(() => {
     const checkAuth = async () => {
@@ -565,36 +595,6 @@ export const useMultiplayerCrashGame = () => {
       toast.error(`Error cashing out: ${error.message}`, { position: 'top-center' });
     }
   }, [currentMultiplier, currentRound, fetchPlayers, gameState, isAuthenticated, isBetPlaced, isRoundActive, playerBet, playerWin]);
-  
-  // Update game history when game crashes
-  const updateGameHistory = useCallback((multiplier: number) => {
-    const timestamp = new Date().toISOString();
-    
-    setGameHistory(prev => {
-      const newHistory = [
-        { 
-          id: `game-${Date.now()}`, 
-          multiplier, 
-          timestamp 
-        },
-        ...prev.slice(0, 19) // Keep only the 20 most recent games
-      ];
-      return newHistory;
-    });
-    
-    // Update players
-    setPlayers(prev => 
-      prev.map(player => {
-        if (player.multiplier === null) {
-          return { ...player, multiplier: 0 }; // Lost
-        }
-        return player;
-      })
-    );
-    
-    // Re-fetch history to sync with server
-    fetchGameHistory();
-  }, [fetchGameHistory]);
   
   return {
     gameState,
