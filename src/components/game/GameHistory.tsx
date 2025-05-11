@@ -1,15 +1,10 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-
-interface GameHistoryItem {
-  id: string;
-  multiplier: number;
-  isWin?: boolean;
-}
+import { HistoryItem } from '@/hooks/game/types';
 
 interface GameHistoryProps {
-  history: GameHistoryItem[];
+  history: HistoryItem[];
 }
 
 const GameHistory: React.FC<GameHistoryProps> = ({ history }) => {

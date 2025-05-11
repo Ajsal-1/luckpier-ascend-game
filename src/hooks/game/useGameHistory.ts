@@ -29,19 +29,21 @@ export const useGameHistory = () => {
       if (data && data.length > 0) {
         const historyItems: HistoryItem[] = data.map(round => ({
           id: round.id,
-          multiplier: parseFloat(round.crash_multiplier.toString()) // Convert to string first before parsing
+          multiplier: parseFloat(round.crash_multiplier.toString()), // Convert to string first before parsing
+          timestamp: round.ended_at || new Date().toISOString()
         }));
         
         setGameHistory(historyItems);
       } else if (gameHistory.length === 0) {
         // Set some fallback history if none exists in database
+        const currentTime = new Date().toISOString();
         setGameHistory([
-          { id: 'game-1', multiplier: 1.27 },
-          { id: 'game-2', multiplier: 2.48 },
-          { id: 'game-3', multiplier: 7.32 },
-          { id: 'game-4', multiplier: 1.07 },
-          { id: 'game-5', multiplier: 1.20 },
-          { id: 'game-6', multiplier: 1.54 },
+          { id: 'game-1', multiplier: 1.27, timestamp: currentTime },
+          { id: 'game-2', multiplier: 2.48, timestamp: currentTime },
+          { id: 'game-3', multiplier: 7.32, timestamp: currentTime },
+          { id: 'game-4', multiplier: 1.07, timestamp: currentTime },
+          { id: 'game-5', multiplier: 1.20, timestamp: currentTime },
+          { id: 'game-6', multiplier: 1.54, timestamp: currentTime },
         ]);
       }
     } catch (err) {
@@ -53,9 +55,11 @@ export const useGameHistory = () => {
 
   // Update history when game crashes
   const updateGameHistory = useCallback((multiplier: number) => {
+    const timestamp = new Date().toISOString();
+    
     setGameHistory(prev => {
       const newHistory = [
-        { id: `game-${Date.now()}`, multiplier },
+        { id: `game-${Date.now()}`, multiplier, timestamp },
         ...prev.slice(0, 19) // Keep only the 20 most recent games
       ];
       return newHistory;
