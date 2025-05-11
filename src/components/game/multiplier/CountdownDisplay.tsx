@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { GAME_STATE } from '@/hooks/game/types';
 
 interface CountdownDisplayProps {
-  gameState: GAME_STATE;
+  gameState: GAME_STATE | string;
   displayValue: string;
   probablyFairHash?: string;
 }
