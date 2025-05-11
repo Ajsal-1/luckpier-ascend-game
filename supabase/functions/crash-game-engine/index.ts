@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import * as crypto from "https://deno.land/std@0.167.0/crypto/mod.ts";
@@ -353,7 +352,8 @@ serve(async (req) => {
           return createErrorResponse('Insufficient balance', 400);
         }
         
-        // Check if round is still in pending status
+        // Check if round is in pending or crashed status 
+        // FIXED: Allow betting during both pending and crashed status
         const { data: round, error: roundError } = await supabase
           .from('rounds')
           .select('status')
@@ -365,8 +365,9 @@ serve(async (req) => {
           return createErrorResponse('Invalid round', 400);
         }
         
-        if (round.status !== 'pending') {
-          return createErrorResponse('Round has already started', 400);
+        if (round.status !== 'pending' && round.status !== 'completed') {
+          console.error("Cannot place bet - round status is:", round.status);
+          return createErrorResponse(`Round has already ${round.status === 'running' ? 'started' : 'ended'}`, 400);
         }
         
         // Check if user already has a bet in this round
@@ -423,7 +424,6 @@ serve(async (req) => {
           success: true,
           bet: bet
         });
-        
       } else if (action === 'cashout') {
         if (!userId) {
           return createErrorResponse('Authentication required', 401);

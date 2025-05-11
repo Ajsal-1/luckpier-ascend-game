@@ -29,6 +29,12 @@ const StatusMessage: React.FC<StatusMessageProps> = ({
           <span>Bet Placed! Good luck!</span>
         </div>
       )}
+
+      {isBetPlaced && isCrashed && (
+        <div className="flex items-center justify-center py-2 px-3 bg-red-900/20 text-red-400 rounded-md text-sm animate-fade-in">
+          <span>Round crashed! Place a new bet.</span>
+        </div>
+      )}
     </>
   );
 };

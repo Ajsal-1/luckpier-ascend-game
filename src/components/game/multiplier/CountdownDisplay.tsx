@@ -27,7 +27,7 @@ const CountdownDisplay: React.FC<CountdownDisplayProps> = ({
   // Assuming a standard 5 second countdown
   const progress = Math.max(0, Math.min(100, ((5.0 - countdown) / 5.0) * 100));
   
-  // Format the countdown to show only whole seconds
+  // Format the countdown to show only whole seconds (no decimals)
   const formattedCountdown = Math.ceil(countdown).toString();
 
   return (

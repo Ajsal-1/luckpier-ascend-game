@@ -1,5 +1,7 @@
+
 import React from 'react';
 import CrashGame from '@/components/game/CrashGame';
+
 const Index = () => {
   return <div className="container mx-auto p-4">
       <h1 className="text-2xl md:text-3xl font-bold mb-2">LuckPier Crash Game</h1>
@@ -7,4 +9,5 @@ const Index = () => {
       <CrashGame />
     </div>;
 };
+
 export default Index;

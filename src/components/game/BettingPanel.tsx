@@ -88,7 +88,7 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
     // If there's an input error, always disable
     if (inputError) return true;
     
-    // CRITICAL FIX: Allow betting during both COUNTDOWN and CRASHED states
+    // FIXED: Allow betting during both COUNTDOWN and CRASHED states
     // This allows betting during the 5-second post-crash period
     if (gameState === GAME_STATE.COUNTDOWN || gameState === GAME_STATE.CRASHED) {
       return false; // Enable during countdown and crashed states
