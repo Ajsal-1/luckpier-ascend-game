@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -25,7 +26,22 @@ export const useMultiplayerCrashGame = () => {
   const countdownIntervalRef = useRef<number | null>(null);
   const gameEngineErrorCount = useRef<number>(0);
 
-  // Fetch game history - defined early to avoid TDZ issues
+  // Calculate multiplier based on start time
+  const calculateCurrentMultiplier = useCallback((startTime: string): number => {
+    const start = new Date(startTime).getTime();
+    const now = Date.now();
+    const elapsedMs = now - start;
+    
+    // Only calculate if we've passed the start time
+    if (elapsedMs <= 0) return 1.0;
+    
+    // Using the formula: multiplier = e^(0.06 * elapsedSeconds)
+    const elapsedSeconds = elapsedMs / 1000;
+    const multiplier = Math.pow(Math.E, 0.06 * elapsedSeconds);
+    return Math.max(1, parseFloat(multiplier.toFixed(2)));
+  }, []);
+
+  // Fetch game history
   const fetchGameHistory = useCallback(async () => {
     try {
       const { data, error } = await supabase
@@ -81,21 +97,6 @@ export const useMultiplayerCrashGame = () => {
     // Re-fetch history to sync with server
     fetchGameHistory();
   }, [fetchGameHistory]);
-  
-  // Calculate multiplier based on start time - moved up before its use
-  const calculateCurrentMultiplier = useCallback((startTime: string): number => {
-    const start = new Date(startTime).getTime();
-    const now = Date.now();
-    const elapsedMs = now - start;
-    
-    // Only calculate if we've passed the start time
-    if (elapsedMs <= 0) return 1.0;
-    
-    // Using the formula: multiplier = e^(0.06 * elapsedSeconds)
-    const elapsedSeconds = elapsedMs / 1000;
-    const multiplier = Math.pow(Math.E, 0.06 * elapsedSeconds);
-    return Math.max(1, parseFloat(multiplier.toFixed(2)));
-  }, []);
   
   // Update multiplier animation
   const updateMultiplier = useCallback(() => {
@@ -203,8 +204,10 @@ export const useMultiplayerCrashGame = () => {
     try {
       console.log("Polling game engine...");
       
-      // Call our edge function
-      const response = await supabase.functions.invoke('crash-game-engine');
+      // Call our edge function with specific options to ensure proper request
+      const response = await supabase.functions.invoke('crash-game-engine', {
+        method: 'GET' // Explicitly use GET method
+      });
       
       // Reset error counter on successful call
       if (response.error) {
@@ -346,7 +349,7 @@ export const useMultiplayerCrashGame = () => {
     fetchGameHistory();
     
     // Set up polling with increased frequency for more responsive updates
-    pollIntervalRef.current = window.setInterval(pollGameEngine, 500);
+    pollIntervalRef.current = window.setInterval(pollGameEngine, 1000);
     
     return () => {
       // Clean up
@@ -487,6 +490,7 @@ export const useMultiplayerCrashGame = () => {
       console.log(`Attempting to place bet: $${amount}`);
       
       const response = await supabase.functions.invoke('crash-game-engine', {
+        method: 'POST',
         body: {
           action: 'place_bet',
           roundId: currentRound.round_id,
@@ -556,6 +560,7 @@ export const useMultiplayerCrashGame = () => {
       console.log(`Attempting cashout at ${cashoutMultiplier.toFixed(2)}x`);
       
       const response = await supabase.functions.invoke('crash-game-engine', {
+        method: 'POST',
         body: {
           action: 'cashout',
           roundId: currentRound.round_id,

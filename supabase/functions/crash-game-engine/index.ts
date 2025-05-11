@@ -308,7 +308,12 @@ serve(async (req) => {
       // Parse request body
       let reqBody;
       try {
-        reqBody = await req.json();
+        // Check if the body exists and is not empty
+        const bodyText = await req.text();
+        if (!bodyText || bodyText.trim() === '') {
+          return createErrorResponse("Empty request body", 400);
+        }
+        reqBody = JSON.parse(bodyText);
         console.log("Received POST request:", JSON.stringify(reqBody));
       } catch (e) {
         console.error("Error parsing JSON request:", e);
@@ -495,7 +500,7 @@ serve(async (req) => {
       }
     }
     
-    return createErrorResponse('Invalid request', 400);
+    return createErrorResponse('Invalid request method', 400);
     
   } catch (error) {
     console.error('Error processing request:', error);
