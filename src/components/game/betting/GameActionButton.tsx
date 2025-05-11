@@ -22,8 +22,9 @@ const GameActionButton: React.FC<GameActionButtonProps> = ({
   isBetPlaced
 }) => {
   const formatTime = (seconds: number): string => {
-    // Ensure timer doesn't show negative values
-    return Math.max(0, seconds).toFixed(1);
+    // Ensure timer doesn't show negative values and always shows exactly one decimal place
+    const time = Math.max(0, seconds);
+    return time.toFixed(1);
   };
   
   // Only show "Cash Out" when the game is playing AND a bet has been placed AND there's no win yet

@@ -32,12 +32,28 @@ const CrashGame: React.FC = () => {
   } = useMultiplayerCrashGame();
 
   // Update wallet balance whenever player bet or win changes
+  // Also refresh periodically to ensure it's always up to date
   useEffect(() => {
     // Only refresh when authenticated
     if (isAuthenticated) {
       refreshWalletBalance();
     }
   }, [playerBet, playerWin, isAuthenticated, refreshWalletBalance]);
+  
+  // Set up a periodic refresh of the wallet balance
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Initial refresh
+      refreshWalletBalance();
+      
+      // Set up interval for periodic refreshes
+      const intervalId = setInterval(() => {
+        refreshWalletBalance();
+      }, 5000); // Refresh every 5 seconds
+      
+      return () => clearInterval(intervalId);
+    }
+  }, [isAuthenticated, refreshWalletBalance]);
 
   const onPlaceBet = async (amount: number, autoCashout?: number | null) => {
     if (!isAuthenticated) {
@@ -55,10 +71,8 @@ const CrashGame: React.FC = () => {
     try {
       await handlePlaceBet(amount, autoCashout);
       
-      // Refresh wallet balance after placing bet
-      setTimeout(() => {
-        refreshWalletBalance();
-      }, 500);
+      // Refresh wallet balance immediately after placing bet
+      refreshWalletBalance();
     } catch (error: any) {
       toast.error(`Failed to place bet: ${error.message || "Unknown error"}`, { position: 'top-center' });
     }
@@ -74,10 +88,8 @@ const CrashGame: React.FC = () => {
     try {
       await handleCashout();
       
-      // Refresh wallet balance after cashing out
-      setTimeout(() => {
-        refreshWalletBalance();
-      }, 500);
+      // Refresh wallet balance immediately after cashing out
+      refreshWalletBalance();
     } catch (error: any) {
       toast.error(`Failed to cash out: ${error.message || "Unknown error"}`, { position: 'top-center' });
     }
@@ -88,7 +100,7 @@ const CrashGame: React.FC = () => {
       case GAME_STATE.WAITING:
         return "Waiting for next round...";
       case GAME_STATE.COUNTDOWN:
-        return `Starting in ${countdownTimer?.toFixed(1)}s`;
+        return `Starting in ${countdownTimer?.toFixed(1) || "5.0"}s`;
       case GAME_STATE.PLAYING:
         return "Game in progress";
       case GAME_STATE.CRASHED:

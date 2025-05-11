@@ -68,6 +68,10 @@ const createErrorResponse = (message: string, status = 400) => {
   return createResponse({ error: message }, status);
 };
 
+// Standardized countdown time - set to 5 seconds consistently
+const STANDARD_COUNTDOWN_TIME = 5; // seconds
+const POST_CRASH_COOLDOWN_TIME = 5; // seconds
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -161,9 +165,9 @@ serve(async (req) => {
               console.error("Error marking bets as lost:", betUpdateError);
             }
             
-            // Create a new round to start in 6 seconds (increased cooldown time)
+            // Create a new round to start in POST_CRASH_COOLDOWN_TIME seconds
             const startTime = new Date();
-            startTime.setSeconds(startTime.getSeconds() + 6); // Start in 6 seconds
+            startTime.setSeconds(startTime.getSeconds() + POST_CRASH_COOLDOWN_TIME); // Start in 5 seconds
             
             // Generate crash point between 1.01x and 10x
             let crashPoint: number;
@@ -207,7 +211,7 @@ serve(async (req) => {
               next_round: {
                 id: newRound.id,
                 start_time: newRound.started_at,
-                countdown: 6 // Extended cooldown time
+                countdown: POST_CRASH_COOLDOWN_TIME // Standardized post-crash cooldown time
               }
             });
           }
@@ -260,7 +264,7 @@ serve(async (req) => {
         
         // No active round, create one
         const startTime = new Date();
-        startTime.setSeconds(startTime.getSeconds() + 3); // Start in 3 seconds
+        startTime.setSeconds(startTime.getSeconds() + STANDARD_COUNTDOWN_TIME); // Start in 5 seconds (standardized)
         
         // Generate crash point between 1.01x and 10x
         let crashPoint: number;
@@ -301,7 +305,7 @@ serve(async (req) => {
           status: 'created',
           round_id: newRound.id,
           start_time: newRound.started_at,
-          countdown: 3 // Standard countdown time
+          countdown: STANDARD_COUNTDOWN_TIME // Standardized countdown time
         });
       }
     } else if (req.method === 'POST') {

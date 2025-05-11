@@ -18,15 +18,15 @@ const CountdownDisplay: React.FC<CountdownDisplayProps> = ({
     return null;
   }
   
-  // Get the countdown value from the game state (comes from the server)
   // Extract numerical value from displayValue if it's in the form "1.00x"
-  const [countdown, setCountdown] = useState(5);
-  const [progress, setProgress] = useState(0);
+  const [countdown, setCountdown] = useState<number>(5);
+  const [progress, setProgress] = useState<number>(0);
   
   useEffect(() => {
     // Start with 5 seconds max countdown
     let startCountdown = 5;
     setCountdown(startCountdown);
+    setProgress(0);
     
     // Set up interval for counting down
     const countdownInterval = setInterval(() => {
@@ -35,9 +35,9 @@ const CountdownDisplay: React.FC<CountdownDisplayProps> = ({
           clearInterval(countdownInterval);
           return 0;
         }
-        return prevCount - 1;
+        return prevCount - 0.1;
       });
-    }, 1000); // Update every second
+    }, 100); // Update every 100ms for more fluid countdown
     
     // Set up more frequent interval for smooth progress bar
     const progressInterval = setInterval(() => {
@@ -57,7 +57,7 @@ const CountdownDisplay: React.FC<CountdownDisplayProps> = ({
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/30 backdrop-blur-sm rounded-md">
       <div className="text-5xl md:text-7xl font-bold mb-4 text-white">
-        {countdown}
+        {countdown.toFixed(1)}
       </div>
       
       <div className="text-xl md:text-2xl mb-4 text-white/80">

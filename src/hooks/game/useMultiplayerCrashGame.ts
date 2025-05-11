@@ -8,7 +8,7 @@ export const useMultiplayerCrashGame = () => {
   // Game state
   const [gameState, setGameState] = useState<GAME_STATE>(GAME_STATE.WAITING);
   const [currentRound, setCurrentRound] = useState<any>(null);
-  const [countdownTimer, setCountdownTimer] = useState<number | null>(3);
+  const [countdownTimer, setCountdownTimer] = useState<number | null>(5);
   const [currentMultiplier, setCurrentMultiplier] = useState<number>(1);
   const [crashPoint, setCrashPoint] = useState<number | null>(null);
   const [isRoundActive, setIsRoundActive] = useState<boolean>(false);
@@ -26,7 +26,7 @@ export const useMultiplayerCrashGame = () => {
   const countdownIntervalRef = useRef<number | null>(null);
   const gameEngineErrorCount = useRef<number>(0);
   const lastCrashTime = useRef<number | null>(null);
-  const postCrashCooldownTime = useRef<number>(6); // 6 seconds cooldown after crash
+  const postCrashCooldownTime = useRef<number>(5); // 5 seconds cooldown after crash (standardized)
   const lastMultiplierRef = useRef<number>(1); // Track the last multiplier to prevent decreases
   const startTimeRef = useRef<number | null>(null); // Track animation start time
   const growthRateRef = useRef<number>(0.06); // Growth rate for multiplier (adjust for faster/slower)
@@ -111,7 +111,7 @@ export const useMultiplayerCrashGame = () => {
     fetchGameHistory();
   }, [fetchGameHistory]);
   
-  // Smooth multiplier animation using requestAnimationFrame
+  // Smooth multiplier animation using requestAnimationFrame for more precise control
   const animateMultiplier = useCallback((timestamp: number) => {
     // If this is the first frame, set the start time
     if (!startTimeRef.current) {
@@ -238,7 +238,7 @@ export const useMultiplayerCrashGame = () => {
         if (gameEngineErrorCount.current > 5 && gameState === GAME_STATE.WAITING) {
           // If we're stuck in waiting state with errors, try to reset by starting a new game
           console.log("Too many errors in waiting state, trying to restart game");
-          setCountdownTimer(3);
+          setCountdownTimer(5);
           setGameState(GAME_STATE.COUNTDOWN);
         }
         
@@ -289,8 +289,8 @@ export const useMultiplayerCrashGame = () => {
               countdown: data.next_round.countdown
             });
             
-            // Start countdown for next round with extended cooldown (6 seconds)
-            setCountdownTimer(postCrashCooldownTime.current);
+            // Start countdown for next round with extended cooldown (5 seconds - standardized)
+            setCountdownTimer(5);
             
             // If we have a player bet and no win, they lost
             if (isBetPlaced && playerWin === null) {
@@ -305,12 +305,12 @@ export const useMultiplayerCrashGame = () => {
                 setPlayerWin(null);
                 setIsBetPlaced(false);
                 setGameState(GAME_STATE.COUNTDOWN); // Move to countdown for next round
-              }, postCrashCooldownTime.current * 1000); // Wait for cooldown period
+              }, 5000); // Wait for cooldown period (standardized)
             } else {
               // No active bet, just move to countdown after cooldown
               setTimeout(() => {
                 setGameState(GAME_STATE.COUNTDOWN);
-              }, postCrashCooldownTime.current * 1000); // Wait for cooldown period
+              }, 5000); // Wait for cooldown period (standardized)
             }
           }
         }
@@ -321,10 +321,10 @@ export const useMultiplayerCrashGame = () => {
         if (gameState !== GAME_STATE.COUNTDOWN) {
           console.log("Game is now in COUNTDOWN state");
           setGameState(GAME_STATE.COUNTDOWN);
-          setCountdownTimer(data.countdown);
+          setCountdownTimer(data.countdown || 5); // Default to 5 seconds if server doesn't specify
         } else {
           // Just update the timer
-          setCountdownTimer(data.countdown);
+          setCountdownTimer(data.countdown || 5); // Default to 5 seconds if server doesn't specify
         }
       } else if (data.status === 'started') {
         setCurrentRound(data);
@@ -349,11 +349,11 @@ export const useMultiplayerCrashGame = () => {
           round_id: data.round_id,
           start_time: data.start_time,
           status: 'waiting',
-          countdown: data.countdown || 3
+          countdown: data.countdown || 5
         });
         
         setGameState(GAME_STATE.COUNTDOWN);
-        setCountdownTimer(data.countdown || 3);
+        setCountdownTimer(data.countdown || 5); // Default to 5 seconds if server doesn't specify
         fetchGameHistory();
       }
     } catch (error) {
@@ -383,58 +383,73 @@ export const useMultiplayerCrashGame = () => {
     
     console.log(`Attempting to place bet: $${amount}`);
     
-    // Get the current session for the auth header
-    const { data: sessionData } = await supabase.auth.getSession();
-    
-    if (!sessionData.session) {
-      throw new Error('Authentication session not found');
-    }
-    
-    const response = await supabase.functions.invoke('crash-game-engine', {
-      method: 'POST',
-      body: {
-        action: 'place_bet',
-        roundId: currentRound.round_id,
-        amount: amount,
-        autoCashoutAt: autoCashoutAt
-      },
-      // Explicitly include auth header for edge function
-      headers: {
-        Authorization: `Bearer ${sessionData.session.access_token}`
+    try {
+      // Get the current session for the auth header
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      if (!sessionData.session) {
+        throw new Error('Authentication session not found');
       }
-    });
-    
-    console.log("Bet response:", response); // Log full response for debugging
-    
-    if (response.error) {
-      const errorMessage = response.error.message || 'Failed to place bet';
-      console.error('Error placing bet:', response.error);
-      throw new Error(errorMessage);
+      
+      // Ensure auth header is correctly formatted
+      const response = await supabase.functions.invoke('crash-game-engine', {
+        method: 'POST',
+        body: {
+          action: 'place_bet',
+          roundId: currentRound.round_id,
+          amount: amount,
+          autoCashoutAt: autoCashoutAt
+        },
+        headers: {
+          Authorization: `Bearer ${sessionData.session.access_token}`
+        }
+      });
+      
+      console.log("Bet response:", response); // Log full response for debugging
+      
+      if (response.error) {
+        console.error('Error placing bet:', response.error);
+        throw new Error(response.error.message || 'Failed to place bet');
+      }
+      
+      if (response.data && response.data.error) {
+        console.error('Server error placing bet:', response.data.error);
+        throw new Error(response.data.error);
+      }
+      
+      if (!response.data || !response.data.success) {
+        throw new Error('Failed to place bet - no success response');
+      }
+      
+      console.log(`Bet placed: $${amount} with auto-cashout at ${autoCashoutAt || 'none'}`);
+      
+      // Update local state
+      setPlayerBet(amount);
+      setIsBetPlaced(true);
+      setPlayerWin(null);
+      
+      // Immediately refresh the user's balance
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('balance')
+        .eq('id', sessionData.session.user.id)
+        .single();
+        
+      if (profileData) {
+        setUserBalance(profileData.balance);
+      }
+      
+      toast.success('Bet placed successfully!', { position: 'top-center' });
+      
+      // Refresh player list
+      fetchPlayers();
+      
+      return response.data;
+    } catch (err: any) {
+      console.error('Error in handlePlaceBet:', err);
+      toast.error(err.message || 'Failed to place bet', { position: 'top-center' });
+      throw err;
     }
-    
-    if (response.data && response.data.error) {
-      console.error('Server error placing bet:', response.data.error);
-      throw new Error(response.data.error);
-    }
-    
-    if (!response.data || !response.data.success) {
-      console.error('Failed to place bet - no success response');
-      throw new Error('Failed to place bet - no success response');
-    }
-    
-    console.log(`Bet placed: $${amount} with auto-cashout at ${autoCashoutAt || 'none'}`);
-    
-    // Update local state
-    setPlayerBet(amount);
-    setIsBetPlaced(true);
-    setPlayerWin(null);
-    
-    toast.success('Bet placed successfully!', { position: 'top-center' });
-    
-    // Refresh player list
-    fetchPlayers();
-    
-    return response.data;
   }, [currentRound, fetchPlayers, gameState, isAuthenticated]);
   
   // Cashout function - IMPROVED ERROR HANDLING
@@ -463,63 +478,78 @@ export const useMultiplayerCrashGame = () => {
       throw new Error('You have already cashed out this round');
     }
     
-    const cashoutMultiplier = currentMultiplier;
-    console.log(`Attempting cashout at ${cashoutMultiplier.toFixed(2)}x`);
-    
-    // Get the current session for the auth header
-    const { data: sessionData } = await supabase.auth.getSession();
-    
-    if (!sessionData.session) {
-      throw new Error('Authentication session not found');
-    }
-    
-    const response = await supabase.functions.invoke('crash-game-engine', {
-      method: 'POST',
-      body: {
-        action: 'cashout',
-        roundId: currentRound.round_id,
-        multiplier: cashoutMultiplier
-      },
-      // Explicitly include auth header for edge function
-      headers: {
-        Authorization: `Bearer ${sessionData.session.access_token}`
+    try {
+      const cashoutMultiplier = currentMultiplier;
+      console.log(`Attempting cashout at ${cashoutMultiplier.toFixed(2)}x`);
+      
+      // Get the current session for the auth header
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      if (!sessionData.session) {
+        throw new Error('Authentication session not found');
       }
-    });
-    
-    console.log("Cashout response:", response); // Log full response for debugging
-    
-    if (response.error) {
-      const errorMessage = response.error.message || 'Failed to cash out';
-      console.error('Error cashing out:', response.error);
-      throw new Error(errorMessage);
+      
+      // Ensure auth header is correctly formatted
+      const response = await supabase.functions.invoke('crash-game-engine', {
+        method: 'POST',
+        body: {
+          action: 'cashout',
+          roundId: currentRound.round_id,
+          multiplier: cashoutMultiplier
+        },
+        headers: {
+          Authorization: `Bearer ${sessionData.session.access_token}`
+        }
+      });
+      
+      console.log("Cashout response:", response); // Log full response for debugging
+      
+      if (response.error) {
+        console.error('Error cashing out:', response.error);
+        throw new Error(response.error.message || 'Failed to cash out');
+      }
+      
+      if (response.data && response.data.error) {
+        console.error('Server error cashing out:', response.data.error);
+        throw new Error(response.data.error);
+      }
+      
+      if (!response.data || !response.data.success) {
+        throw new Error('Failed to cash out - no success response');
+      }
+      
+      // Update local state
+      setPlayerWin(cashoutMultiplier);
+      
+      // Calculate winnings
+      const winnings = playerBet * cashoutMultiplier;
+      const profit = winnings - playerBet;
+      
+      // Immediately refresh the user's balance
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('balance')
+        .eq('id', sessionData.session.user.id)
+        .single();
+        
+      if (profileData) {
+        setUserBalance(profileData.balance);
+      }
+      
+      toast.success(
+        `You won $${profit.toFixed(2)}! Total: $${winnings.toFixed(2)}`, 
+        { position: 'top-center' }
+      );
+      
+      // Refresh player list
+      fetchPlayers();
+      
+      return response.data;
+    } catch (err: any) {
+      console.error('Error in handleCashout:', err);
+      toast.error(err.message || 'Failed to cash out', { position: 'top-center' });
+      throw err;
     }
-    
-    if (response.data && response.data.error) {
-      console.error('Server error cashing out:', response.data.error);
-      throw new Error(response.data.error);
-    }
-    
-    if (!response.data || !response.data.success) {
-      console.error('Failed to cash out - no success response');
-      throw new Error('Failed to cash out - no success response');
-    }
-    
-    // Update local state
-    setPlayerWin(cashoutMultiplier);
-    
-    // Calculate winnings
-    const winnings = playerBet * cashoutMultiplier;
-    const profit = winnings - playerBet;
-    
-    toast.success(
-      `You won $${profit.toFixed(2)}! Total: $${winnings.toFixed(2)}`, 
-      { position: 'top-center' }
-    );
-    
-    // Refresh player list
-    fetchPlayers();
-    
-    return response.data;
   }, [currentMultiplier, currentRound, fetchPlayers, gameState, isAuthenticated, isBetPlaced, isRoundActive, playerBet, playerWin]);
   
   // Set up polling and clean up on unmount
