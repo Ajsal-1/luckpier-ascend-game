@@ -21,12 +21,6 @@ const GameActionButton: React.FC<GameActionButtonProps> = ({
   onClick,
   isBetPlaced
 }) => {
-  const formatTime = (seconds: number): string => {
-    // Ensure timer always shows exactly one decimal place for perfect sync with CountdownDisplay
-    const time = Math.max(0, seconds);
-    return time.toFixed(1);
-  };
-  
   // Only show "Cash Out" when the game is playing AND a bet has been placed AND there's no win yet
   const showCashOut = isPlaying && isBetPlaced && !hasWon;
   
@@ -64,7 +58,7 @@ const GameActionButton: React.FC<GameActionButtonProps> = ({
         disabled={isDisabled}
       >
         {isCountdownActive
-          ? `Place Bet (${formatTime(remainingTime)}s)`
+          ? "Place Bet"
           : isNearlyFinished
             ? "Place Bet Now!"
             : "Place Bet"}
