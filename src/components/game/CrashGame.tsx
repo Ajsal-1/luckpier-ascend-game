@@ -16,6 +16,7 @@ const CrashGame: React.FC = () => {
   const { isAuthenticated, wallet, refreshWalletBalance } = useAuth();
   const [lastBalanceRefresh, setLastBalanceRefresh] = useState<number>(Date.now());
   const [isProcessingBet, setIsProcessingBet] = useState<boolean>(false);
+  const [isProcessingCashout, setIsProcessingCashout] = useState<boolean>(false);
 
   const {
     gameState,
@@ -34,7 +35,6 @@ const CrashGame: React.FC = () => {
   } = useMultiplayerCrashGame();
 
   // Update wallet balance only when significant events occur, with rate limiting
-  // This prevents too frequent refreshes that cause UI jumping
   const throttledRefreshBalance = useCallback(() => {
     const now = Date.now();
     if (now - lastBalanceRefresh > 2000) { // Limit to once every 2 seconds
@@ -79,19 +79,11 @@ const CrashGame: React.FC = () => {
     };
   }, [isAuthenticated, throttledRefreshBalance]);
   
-  // Set up less frequent periodic refreshes of the wallet balance to reduce UI flicker
+  // Initial balance load when component mounts
   useEffect(() => {
-    if (!isAuthenticated) return;
-    
-    // Initial refresh once on component mount
-    throttledRefreshBalance();
-    
-    // Set up interval for periodic refreshes - REDUCED frequency to prevent UI jumpiness
-    const intervalId = setInterval(() => {
+    if (isAuthenticated) {
       throttledRefreshBalance();
-    }, 30000); // Only refresh every 30 seconds instead of 10
-    
-    return () => clearInterval(intervalId);
+    }
   }, [isAuthenticated, throttledRefreshBalance]);
 
   const onPlaceBet = async (amount: number, autoCashout?: number | null) => {
@@ -136,7 +128,7 @@ const CrashGame: React.FC = () => {
       return;
     }
     
-    setIsProcessingBet(true);
+    setIsProcessingCashout(true);
     try {
       await handleCashout();
       
@@ -145,7 +137,7 @@ const CrashGame: React.FC = () => {
     } catch (error: any) {
       toast.error(`Failed to cash out: ${error.message || "Unknown error"}`, { position: 'top-center' });
     } finally {
-      setIsProcessingBet(false);
+      setIsProcessingCashout(false);
     }
   };
 
@@ -195,6 +187,8 @@ const CrashGame: React.FC = () => {
             balance={wallet.balance}
             isBetPlaced={isBetPlaced}
             gameState={gameState}
+            isProcessingBet={isProcessingBet}
+            isProcessingCashout={isProcessingCashout}
           />
         </div>
         

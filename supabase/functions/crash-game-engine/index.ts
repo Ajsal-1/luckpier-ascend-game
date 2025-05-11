@@ -495,20 +495,46 @@ serve(async (req) => {
           return createErrorResponse('Failed to process cashout', 500);
         }
         
-        // Add winnings to user balance
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({
-            balance: supabase.rpc('get_new_balance', { 
-              user_id: userId, 
-              amount_to_add: winnings 
-            })
-          })
-          .eq('id', userId);
+        // Add winnings to user balance - try using RPC first, fall back to direct update if that fails
+        let profileUpdateSuccess = false;
+        try {
+          const { error: rpcError } = await supabase.rpc('get_new_balance', { 
+            user_id: userId, 
+            amount_to_add: winnings 
+          });
           
-        if (profileError) {
-          console.error("Error updating profile on cashout:", profileError);
-          return createErrorResponse('Failed to update balance', 500);
+          if (!rpcError) {
+            profileUpdateSuccess = true;
+          } else {
+            console.error("RPC error, falling back to direct update:", rpcError);
+          }
+        } catch (err) {
+          console.error("Error calling RPC, falling back to direct update:", err);
+        }
+        
+        // Fallback: direct balance update if RPC fails
+        if (!profileUpdateSuccess) {
+          // First get current balance
+          const { data: currentProfile } = await supabase
+            .from('profiles')
+            .select('balance')
+            .eq('id', userId)
+            .single();
+            
+          if (!currentProfile) {
+            return createErrorResponse('Failed to retrieve current balance', 500);
+          }
+          
+          // Update with new balance
+          const { error: directUpdateError } = await supabase
+            .from('profiles')
+            .update({ balance: currentProfile.balance + winnings })
+            .eq('id', userId);
+            
+          if (directUpdateError) {
+            console.error("Error with direct balance update:", directUpdateError);
+            return createErrorResponse('Failed to update balance', 500);
+          }
         }
         
         console.log(`User ${userId} cashed out at ${multiplier}x for ${winnings}`);

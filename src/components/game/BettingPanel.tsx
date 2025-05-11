@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import BetAmountInput from './betting/BetAmountInput';
 import AutoCashoutInput from './betting/AutoCashoutInput';
@@ -17,7 +16,9 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
   remainingTime,
   balance = 1000.00,
   isBetPlaced = false,
-  gameState
+  gameState,
+  isProcessingBet = false,
+  isProcessingCashout = false
 }) => {
   const [betAmount, setBetAmount] = useState("100.00");
   const [autoCashout, setAutoCashout] = useState<string>("2.00");
@@ -64,25 +65,19 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
     }
     
     if (amount > 0 && amount <= (cachedBalance || 0) && !inputError) {
-      setIsProcessing(true);
       try {
         await onPlaceBet(amount, autoValue);
       } catch (error) {
         console.error("Bet placement failed:", error);
-      } finally {
-        setIsProcessing(false);
       }
     }
   };
   
   const handleCashout = async () => {
-    setIsProcessing(true);
     try {
       await onCashout();
     } catch (error) {
       console.error("Cashout failed:", error);
-    } finally {
-      setIsProcessing(false);
     }
   };
   
@@ -157,7 +152,7 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
           <BetAmountInput 
             betAmount={betAmount}
             onBetAmountChange={handleBetAmountChange}
-            isDisabled={isPlaying || isBetPlaced || isProcessing}
+            isDisabled={isPlaying || isBetPlaced || isProcessingBet || isProcessingCashout}
             hasError={!!inputError}
             isPlaying={isPlaying}
           />
@@ -168,14 +163,14 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
             useAutoCashout={useAutoCashout}
             onAutoCashoutChange={handleAutoCashoutChange}
             onToggleAutoCashout={handleToggleAutoCashout}
-            isDisabled={isPlaying || isBetPlaced || isProcessing}
+            isDisabled={isPlaying || isBetPlaced || isProcessingBet || isProcessingCashout}
           />
           
           {/* Betting Period Indicator - improved! */}
           {(gameState === GAME_STATE.COUNTDOWN || gameState === GAME_STATE.CRASHED) && (
             <div className="bg-green-700/20 border border-green-600/30 rounded-md p-2 text-center">
               <span className="text-green-400 text-sm font-medium">
-                Betting open for {formatTime(remainingTime)}s
+                Betting open for {Math.ceil(remainingTime || 5)}s
               </span>
             </div>
           )}
@@ -186,7 +181,7 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
             isPlaying={isPlaying}
             isBetPlaced={isBetPlaced}
             isCrashed={isCrashed}
-            isProcessing={isProcessing}
+            isProcessing={isProcessingBet || isProcessingCashout}
           />
 
           {/* Spacer */}
@@ -201,7 +196,7 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
               hasWon={hasWon}
               isCrashed={isCrashed}
               isBetPlaced={isBetPlaced}
-              isProcessing={isProcessing}
+              isProcessing={isPlaying && isBetPlaced ? isProcessingCashout : isProcessingBet}
               onClick={isPlaying && isBetPlaced ? handleCashout : handlePlaceBet}
             />
           </div>

@@ -299,6 +299,10 @@ export type Database = {
         Args: { recent_crashes: number[] }
         Returns: number
       }
+      get_new_balance: {
+        Args: { user_id: string; amount_to_add: number }
+        Returns: number
+      }
       get_recent_crash_points: {
         Args: { count?: number }
         Returns: {
