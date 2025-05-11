@@ -7,7 +7,7 @@ export interface MultiplierProps {
   onCrash: (value: number) => void;
   currentMultiplier: number;
   onMultiplierUpdate: (multiplier: number) => void;
-  gameState: string;
+  gameState: string | import('@/hooks/game/types').GAME_STATE;
 }
 
 export interface ChartDataPoint {

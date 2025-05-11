@@ -8,6 +8,7 @@ import CountdownDisplay from './multiplier/CountdownDisplay';
 import FloatingMultiplier from './multiplier/FloatingMultiplier';
 import MultiplierDisplay from './multiplier/MultiplierDisplay';
 import { MultiplierProps } from './multiplier/types';
+import { GAME_STATE } from '@/hooks/game/types';
 
 const Multiplier: React.FC<MultiplierProps> = ({
   isPlaying,
@@ -56,7 +57,7 @@ const Multiplier: React.FC<MultiplierProps> = ({
 
           {/* Countdown Display */}
           <CountdownDisplay 
-            gameState={gameState} 
+            gameState={gameState as GAME_STATE} 
             displayValue={displayValue} 
           />
 
