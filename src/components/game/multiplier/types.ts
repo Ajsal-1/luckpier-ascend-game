@@ -8,6 +8,7 @@ export interface MultiplierProps {
   currentMultiplier: number;
   onMultiplierUpdate: (multiplier: number) => void;
   gameState: string | import('@/hooks/game/types').GAME_STATE;
+  remainingTime?: number | null;
 }
 
 export interface ChartDataPoint {
