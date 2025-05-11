@@ -68,13 +68,11 @@ export const Navbar = () => {
             <div className="flex items-center space-x-4">
               {isAuthenticated ? (
                 <>
-                  <div className="text-white bg-[#1c2533] px-4 py-1.5 rounded font-medium border border-gray-700/30">
+                  <div className="text-white bg-[#1c2533] px-4 py-1.5 rounded font-medium border border-gray-700/30 w-[120px] text-right">
                     <span className="text-gray-400 mr-1">$</span>
-                    {wallet.loading ? (
-                      <span className="inline-block min-w-[30px]">...</span>
-                    ) : (
-                      wallet.balance.toFixed(2)
-                    )}
+                    <span className="inline-block">
+                      {wallet.balance.toFixed(2)}
+                    </span>
                   </div>
                   
                   <Button 
