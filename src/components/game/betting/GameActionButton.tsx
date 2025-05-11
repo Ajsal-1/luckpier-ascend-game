@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { Loader2 } from 'lucide-react';
 
 interface GameActionButtonProps {
   isPlaying: boolean;
@@ -10,6 +11,7 @@ interface GameActionButtonProps {
   isCrashed: boolean;
   onClick: () => void;
   isBetPlaced: boolean;
+  isProcessing?: boolean;
 }
 
 const GameActionButton: React.FC<GameActionButtonProps> = ({
@@ -19,7 +21,8 @@ const GameActionButton: React.FC<GameActionButtonProps> = ({
   hasWon,
   isCrashed,
   onClick,
-  isBetPlaced
+  isBetPlaced,
+  isProcessing = false
 }) => {
   // Only show "Cash Out" when the game is playing AND a bet has been placed AND there's no win yet
   const showCashOut = isPlaying && isBetPlaced && !hasWon;
@@ -31,12 +34,18 @@ const GameActionButton: React.FC<GameActionButtonProps> = ({
           "w-full py-3 text-base font-medium rounded-md transition-all",
           isCrashed ? 
             "bg-amber-600/50 text-white/70 cursor-not-allowed" : 
-            "bg-amber-500 hover:bg-amber-600 text-white animate-pulse"
+            isProcessing ?
+              "bg-amber-600 text-white cursor-wait" :
+              "bg-amber-500 hover:bg-amber-600 text-white animate-pulse"
         )}
         onClick={onClick}
-        disabled={isCrashed || hasWon}
+        disabled={isCrashed || hasWon || isProcessing}
       >
-        Cash Out
+        {isProcessing ? (
+          <span className="flex items-center justify-center">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...
+          </span>
+        ) : "Cash Out"}
       </button>
     );
   } else {
@@ -50,14 +59,20 @@ const GameActionButton: React.FC<GameActionButtonProps> = ({
           "w-full py-3 text-base font-medium rounded-md transition-all",
           isDisabled ? 
             "bg-blue-600/50 text-white/70 cursor-not-allowed" : 
-            isCountdownActive ? 
-              "bg-green-600 hover:bg-green-700 text-white font-bold" : 
-              "bg-blue-600 hover:bg-blue-700 text-white"
+            isProcessing ?
+              "bg-blue-700 text-white cursor-wait" :
+              isCountdownActive ? 
+                "bg-green-600 hover:bg-green-700 text-white font-bold" : 
+                "bg-blue-600 hover:bg-blue-700 text-white"
         )}
         onClick={onClick}
-        disabled={isDisabled}
+        disabled={isDisabled || isProcessing}
       >
-        {isCountdownActive
+        {isProcessing ? (
+          <span className="flex items-center justify-center">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...
+          </span>
+        ) : isCountdownActive
           ? `Place Bet (${Math.ceil(remainingTime)}s)`
           : isNearlyFinished
             ? "Place Bet Now!"

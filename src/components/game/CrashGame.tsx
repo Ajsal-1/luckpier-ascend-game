@@ -14,6 +14,8 @@ import { supabase } from '@/integrations/supabase/client';
 const CrashGame: React.FC = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const { isAuthenticated, wallet, refreshWalletBalance } = useAuth();
+  const [lastBalanceRefresh, setLastBalanceRefresh] = useState<number>(Date.now());
+  const [isProcessingBet, setIsProcessingBet] = useState<boolean>(false);
 
   const {
     gameState,
@@ -31,12 +33,22 @@ const CrashGame: React.FC = () => {
     currentRound,
   } = useMultiplayerCrashGame();
 
-  // Update wallet balance whenever significant events occur
+  // Update wallet balance only when significant events occur, with rate limiting
+  // This prevents too frequent refreshes that cause UI jumping
+  const throttledRefreshBalance = useCallback(() => {
+    const now = Date.now();
+    if (now - lastBalanceRefresh > 2000) { // Limit to once every 2 seconds
+      refreshWalletBalance();
+      setLastBalanceRefresh(now);
+    }
+  }, [lastBalanceRefresh, refreshWalletBalance]);
+  
+  // Update wallet balance for key events only
   useEffect(() => {
     if (isAuthenticated && (playerBet !== null || playerWin !== null)) {
-      refreshWalletBalance();
+      throttledRefreshBalance();
     }
-  }, [playerBet, playerWin, isAuthenticated, refreshWalletBalance]);
+  }, [playerBet, playerWin, isAuthenticated, throttledRefreshBalance]);
   
   // Add a realtime subscription for round updates with more aggressive balance refreshing
   useEffect(() => {
@@ -57,7 +69,7 @@ const CrashGame: React.FC = () => {
         
         // Also refresh wallet balance on round completion
         if (isAuthenticated) {
-          refreshWalletBalance();
+          throttledRefreshBalance();
         }
       })
       .subscribe();
@@ -65,22 +77,22 @@ const CrashGame: React.FC = () => {
     return () => {
       supabase.removeChannel(roundsChannel);
     };
-  }, [isAuthenticated, refreshWalletBalance]);
+  }, [isAuthenticated, throttledRefreshBalance]);
   
-  // Set up more frequent periodic refreshes of the wallet balance
+  // Set up less frequent periodic refreshes of the wallet balance to reduce UI flicker
   useEffect(() => {
     if (!isAuthenticated) return;
     
     // Initial refresh once on component mount
-    refreshWalletBalance();
+    throttledRefreshBalance();
     
-    // Set up interval for periodic refreshes - more frequent
+    // Set up interval for periodic refreshes - REDUCED frequency to prevent UI jumpiness
     const intervalId = setInterval(() => {
-      refreshWalletBalance();
-    }, 10000); // Refresh every 10 seconds
+      throttledRefreshBalance();
+    }, 30000); // Only refresh every 30 seconds instead of 10
     
     return () => clearInterval(intervalId);
-  }, [isAuthenticated, refreshWalletBalance]);
+  }, [isAuthenticated, throttledRefreshBalance]);
 
   const onPlaceBet = async (amount: number, autoCashout?: number | null) => {
     if (!isAuthenticated) {
@@ -101,16 +113,19 @@ const CrashGame: React.FC = () => {
       return;
     }
     
+    setIsProcessingBet(true);
     try {
       await handlePlaceBet(amount, autoCashout);
       
       // Refresh wallet balance immediately after placing bet
-      refreshWalletBalance();
+      throttledRefreshBalance();
       
       // Show confirmation toast
       toast.success(`Bet placed: $${amount.toFixed(2)}`, { position: 'top-center' });
     } catch (error: any) {
       toast.error(`Failed to place bet: ${error.message || "Unknown error"}`, { position: 'top-center' });
+    } finally {
+      setIsProcessingBet(false);
     }
   };
 
@@ -121,13 +136,16 @@ const CrashGame: React.FC = () => {
       return;
     }
     
+    setIsProcessingBet(true);
     try {
       await handleCashout();
       
       // Refresh wallet balance immediately after cashing out
-      refreshWalletBalance();
+      throttledRefreshBalance();
     } catch (error: any) {
       toast.error(`Failed to cash out: ${error.message || "Unknown error"}`, { position: 'top-center' });
+    } finally {
+      setIsProcessingBet(false);
     }
   };
 

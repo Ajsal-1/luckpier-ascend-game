@@ -23,6 +23,17 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
   const [autoCashout, setAutoCashout] = useState<string>("2.00");
   const [useAutoCashout, setUseAutoCashout] = useState(true);
   const [inputError, setInputError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [cachedBalance, setCachedBalance] = useState(balance);
+  
+  // Smooth balance updates to prevent UI jumping
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCachedBalance(balance);
+    }, 500); // Only update balance display after a delay
+    
+    return () => clearTimeout(timer);
+  }, [balance]);
   
   // Validate inputs when they change
   useEffect(() => {
@@ -30,7 +41,7 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
     
     if (isNaN(amount) || amount <= 0) {
       setInputError("Enter a valid bet amount");
-    } else if (amount > (balance || 0)) {
+    } else if (amount > (cachedBalance || 0)) {
       setInputError("Insufficient balance");
     } else if (useAutoCashout) {
       const autoValue = parseFloat(autoCashout);
@@ -42,9 +53,9 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
     } else {
       setInputError(null);
     }
-  }, [betAmount, autoCashout, useAutoCashout, balance]);
+  }, [betAmount, autoCashout, useAutoCashout, cachedBalance]);
   
-  const handlePlaceBet = () => {
+  const handlePlaceBet = async () => {
     const amount = parseFloat(betAmount);
     let autoValue: number | null = null;
     
@@ -52,8 +63,26 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
       autoValue = parseFloat(autoCashout);
     }
     
-    if (amount > 0 && amount <= (balance || 0) && !inputError) {
-      onPlaceBet(amount, autoValue);
+    if (amount > 0 && amount <= (cachedBalance || 0) && !inputError) {
+      setIsProcessing(true);
+      try {
+        await onPlaceBet(amount, autoValue);
+      } catch (error) {
+        console.error("Bet placement failed:", error);
+      } finally {
+        setIsProcessing(false);
+      }
+    }
+  };
+  
+  const handleCashout = async () => {
+    setIsProcessing(true);
+    try {
+      await onCashout();
+    } catch (error) {
+      console.error("Cashout failed:", error);
+    } finally {
+      setIsProcessing(false);
     }
   };
   
@@ -121,14 +150,14 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
       
       <div className="p-4 flex-1 flex flex-col">
         <div className="space-y-4 flex-1">
-          {/* Balance Display */}
-          <BalanceDisplay balance={balance} />
+          {/* Balance Display - Now using cached balance to prevent UI jumps */}
+          <BalanceDisplay balance={cachedBalance} />
         
           {/* Bet Amount */}
           <BetAmountInput 
             betAmount={betAmount}
             onBetAmountChange={handleBetAmountChange}
-            isDisabled={isPlaying || isBetPlaced}
+            isDisabled={isPlaying || isBetPlaced || isProcessing}
             hasError={!!inputError}
             isPlaying={isPlaying}
           />
@@ -139,7 +168,7 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
             useAutoCashout={useAutoCashout}
             onAutoCashoutChange={handleAutoCashoutChange}
             onToggleAutoCashout={handleToggleAutoCashout}
-            isDisabled={isPlaying || isBetPlaced}
+            isDisabled={isPlaying || isBetPlaced || isProcessing}
           />
           
           {/* Betting Period Indicator - improved! */}
@@ -157,6 +186,7 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
             isPlaying={isPlaying}
             isBetPlaced={isBetPlaced}
             isCrashed={isCrashed}
+            isProcessing={isProcessing}
           />
 
           {/* Spacer */}
@@ -171,7 +201,8 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
               hasWon={hasWon}
               isCrashed={isCrashed}
               isBetPlaced={isBetPlaced}
-              onClick={isPlaying && isBetPlaced ? onCashout : handlePlaceBet}
+              isProcessing={isProcessing}
+              onClick={isPlaying && isBetPlaced ? handleCashout : handlePlaceBet}
             />
           </div>
         </div>

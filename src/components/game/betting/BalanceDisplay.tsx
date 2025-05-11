@@ -7,7 +7,7 @@ interface BalanceDisplayProps {
 
 const BalanceDisplay: React.FC<BalanceDisplayProps> = ({ balance }) => {
   return (
-    <div className="text-right text-sm text-gray-300">
+    <div className="text-right text-sm text-gray-300 h-5"> {/* Fixed height to prevent jumping */}
       Balance: <span className="font-medium text-white">${balance.toFixed(2)}</span>
     </div>
   );
