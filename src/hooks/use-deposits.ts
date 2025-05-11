@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -10,7 +10,7 @@ export const useDeposits = () => {
   const [isLoadingDeposits, setIsLoadingDeposits] = useState(false);
 
   // Fetch pending deposits
-  const fetchPendingDeposits = async () => {
+  const fetchPendingDeposits = useCallback(async () => {
     if (!user) return;
     
     setIsLoadingDeposits(true);
@@ -30,7 +30,7 @@ export const useDeposits = () => {
     } finally {
       setIsLoadingDeposits(false);
     }
-  };
+  }, [user]);
 
   // Set up auto refresh
   useEffect(() => {
@@ -45,7 +45,7 @@ export const useDeposits = () => {
       
       return () => clearInterval(interval);
     }
-  }, [isAuthenticated, user]);
+  }, [fetchPendingDeposits, isAuthenticated, refreshWalletBalance]);
 
   return {
     pendingDeposits,

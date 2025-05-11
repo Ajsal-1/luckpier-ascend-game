@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -89,8 +90,9 @@ export const useMultiplayerCrashGame = () => {
     // Only calculate if we've passed the start time
     if (elapsedMs <= 0) return 1.0;
     
-    // Using the formula: multiplier = 1.002^(elapsed milliseconds)
-    const multiplier = Math.pow(1.002, elapsedMs / 1000);
+    // Using the formula: multiplier = e^(0.06 * elapsedSeconds)
+    const elapsedSeconds = elapsedMs / 1000;
+    const multiplier = Math.pow(Math.E, 0.06 * elapsedSeconds);
     return Math.max(1, parseFloat(multiplier.toFixed(2)));
   }, []);
   
@@ -131,129 +133,106 @@ export const useMultiplayerCrashGame = () => {
   }, [updateMultiplier]);
   
   // Poll for active rounds
-  const pollActiveRounds = useCallback(async () => {
+  const pollGameEngine = useCallback(async () => {
     try {
       // Call our edge function
       const response = await supabase.functions.invoke('crash-game-engine');
       const data = response.data;
       
-      if (!data || !data.success) {
-        console.error('Error polling rounds:', data?.error || 'Unknown error');
+      if (!data) {
+        console.error('No data returned from game engine');
         return;
       }
       
-      // If rounds were processed
-      if (data.rounds && data.rounds.length > 0) {
-        const roundInfo = data.rounds[0]; // Take the first round
-        
-        // Update round status based on action
-        if (roundInfo.action === 'crashed') {
-          setCrashPoint(roundInfo.crash_point);
-          setGameState(GAME_STATE.CRASHED);
-          setIsRoundActive(false);
-          
-          // Update crash history
-          fetchGameHistory();
-          
-          // Start countdown for next round
-          setCountdownTimer(3);
-          
-          // If we have a player bet and no win, they lost
-          if (isBetPlaced && playerWin === null) {
-            toast.error(`Crashed at ${roundInfo.crash_point.toFixed(2)}x! You lost your bet.`, {
-              position: 'top-center'
-            });
-          }
-        } else if (roundInfo.action === 'running') {
-          // Update current multiplier from server
-          if (roundInfo.current_multiplier !== currentMultiplier) {
-            setCurrentMultiplier(roundInfo.current_multiplier);
-          }
-          
-          // Keep track of the crash point
-          setCrashPoint(roundInfo.crash_point);
-          
-          // Ensure game state is PLAYING
-          if (gameState !== GAME_STATE.PLAYING) {
-            setGameState(GAME_STATE.PLAYING);
-            setIsRoundActive(true);
-            // Start the multiplier animation
-            startMultiplierAnimation();
-          }
-        }
-      } else if (data.action === 'started_round') {
-        // A waiting round just started
-        setGameState(GAME_STATE.PLAYING);
-        setIsRoundActive(true);
-        setCurrentMultiplier(1);
-        setCrashPoint(data.round.crash_multiplier);
-        setCurrentRound(data.round);
-        // Start the multiplier animation
-        startMultiplierAnimation();
-      } else if (data.action === 'created_round') {
-        // A new round was created
-        fetchCurrentRound();
-      } else if (data.action === 'waiting_for_start') {
-        // Waiting for a round to start
-        setGameState(GAME_STATE.COUNTDOWN);
-        setCountdownTimer(data.time_left);
-      }
-    } catch (error) {
-      console.error('Error in pollActiveRounds:', error);
-    }
-  }, [currentMultiplier, fetchGameHistory, gameState, isBetPlaced, playerWin, startMultiplierAnimation]);
-  
-  // Fetch current round
-  const fetchCurrentRound = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('crash_rounds')
-        .select('*')
-        .or('status.eq.waiting,status.eq.running')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-        
-      if (error) {
-        console.error('Error fetching current round:', error);
-        return;
-      }
-      
-      if (data) {
+      // Update game state based on response
+      if (data.status === 'playing') {
         setCurrentRound(data);
-        setCrashPoint(data.crash_multiplier);
+        setCurrentMultiplier(data.current_multiplier);
         
-        // Set game state based on round status
-        if (data.status === 'waiting') {
-          setGameState(GAME_STATE.COUNTDOWN);
-          // Calculate countdown timer
-          const startTime = new Date(data.start_time).getTime();
-          const now = Date.now();
-          const timeLeft = Math.max(0, (startTime - now) / 1000);
-          setCountdownTimer(timeLeft);
-        } else if (data.status === 'running') {
+        // Ensure game state is PLAYING
+        if (gameState !== GAME_STATE.PLAYING) {
           setGameState(GAME_STATE.PLAYING);
           setIsRoundActive(true);
           // Start the multiplier animation
           startMultiplierAnimation();
         }
-      } else {
-        // No active or waiting rounds, request one through the edge function
-        pollActiveRounds();
+      } else if (data.status === 'crashed') {
+        setCrashPoint(data.crashPoint);
+        setGameState(GAME_STATE.CRASHED);
+        setIsRoundActive(false);
+        
+        // Update crash history
+        fetchGameHistory();
+        
+        // Start countdown for next round
+        setCountdownTimer(5);
+        
+        // If we have a player bet and no win, they lost
+        if (isBetPlaced && playerWin === null) {
+          toast.error(`Crashed at ${data.crashPoint.toFixed(2)}x! You lost your bet.`, {
+            position: 'top-center'
+          });
+        }
+      } else if (data.status === 'waiting') {
+        setCurrentRound(data);
+        setGameState(GAME_STATE.COUNTDOWN);
+        setCountdownTimer(data.countdown);
+      } else if (data.status === 'started') {
+        setCurrentRound(data);
+        setGameState(GAME_STATE.PLAYING);
+        setIsRoundActive(true);
+        setCurrentMultiplier(1);
+        // Start the multiplier animation
+        startMultiplierAnimation();
+      } else if (data.status === 'created') {
+        // A new round was created
+        fetchGameHistory();
+      }
+    } catch (error) {
+      console.error('Error in pollGameEngine:', error);
+    }
+  }, [fetchGameHistory, gameState, isBetPlaced, playerWin, startMultiplierAnimation]);
+  
+  // Fetch active players for the current round
+  const fetchPlayers = useCallback(async () => {
+    if (!currentRound || !currentRound.round_id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('user_bets')
+        .select(`
+          id,
+          bet_amount,
+          cashout_multiplier,
+          profiles:user_id (username)
+        `)
+        .eq('round_id', currentRound.round_id);
+        
+      if (error) throw error;
+      
+      if (data) {
+        const formattedPlayers = data.map((bet: any) => ({
+          id: bet.id,
+          name: bet.profiles?.username || 'Anonymous',
+          amount: bet.bet_amount,
+          multiplier: bet.cashout_multiplier
+        }));
+        
+        setPlayers(formattedPlayers);
       }
     } catch (err) {
-      console.error('Error in fetchCurrentRound:', err);
+      console.error('Error fetching players:', err);
     }
-  }, [pollActiveRounds, startMultiplierAnimation]);
+  }, [currentRound]);
   
   // Set up polling and clean up on unmount
   useEffect(() => {
     // Initial fetch
-    fetchCurrentRound();
+    pollGameEngine();
     fetchGameHistory();
     
     // Set up polling
-    pollIntervalRef.current = window.setInterval(pollActiveRounds, 100);
+    pollIntervalRef.current = window.setInterval(pollGameEngine, 1000);
     
     return () => {
       // Clean up
@@ -267,7 +246,18 @@ export const useMultiplayerCrashGame = () => {
         clearInterval(countdownIntervalRef.current);
       }
     };
-  }, [fetchCurrentRound, fetchGameHistory, pollActiveRounds]);
+  }, [fetchGameHistory, pollGameEngine]);
+  
+  // Update players list periodically
+  useEffect(() => {
+    fetchPlayers();
+    
+    const playersInterval = setInterval(fetchPlayers, 2000);
+    
+    return () => {
+      clearInterval(playersInterval);
+    };
+  }, [fetchPlayers]);
   
   // Set up countdown timer
   useEffect(() => {
@@ -297,62 +287,10 @@ export const useMultiplayerCrashGame = () => {
     };
   }, [countdownTimer, gameState]);
   
-  // Fetch active players for the current round
-  const fetchPlayers = useCallback(async () => {
-    if (!currentRound) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('user_bets')
-        .select(`
-          id,
-          bet_amount,
-          cashout_multiplier,
-          profiles:user_id (username)
-        `)
-        .eq('round_id', currentRound.id);
-        
-      if (error) throw error;
-      
-      if (data) {
-        const formattedPlayers = data.map((bet: any) => ({
-          id: bet.id,
-          name: bet.profiles?.username || 'Anonymous',
-          amount: bet.bet_amount,
-          multiplier: bet.cashout_multiplier
-        }));
-        
-        setPlayers(formattedPlayers);
-      }
-    } catch (err) {
-      console.error('Error fetching players:', err);
-    }
-  }, [currentRound]);
-  
-  // Update players list periodically
-  useEffect(() => {
-    fetchPlayers();
-    
-    const playersInterval = setInterval(fetchPlayers, 1000);
-    
-    return () => {
-      clearInterval(playersInterval);
-    };
-  }, [fetchPlayers]);
-  
   // Set up realtime subscription for crash rounds
   useEffect(() => {
     const channel = supabase
       .channel('schema-db-changes')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'crash_rounds',
-      }, () => {
-        console.log('New crash round created, updating state');
-        fetchCurrentRound();
-        fetchGameHistory();
-      })
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
@@ -365,13 +303,6 @@ export const useMultiplayerCrashGame = () => {
           setGameState(GAME_STATE.CRASHED);
           setIsRoundActive(false);
           fetchGameHistory();
-        } else if (payload.new.status === 'running' && payload.old.status === 'waiting') {
-          // Round started
-          setGameState(GAME_STATE.PLAYING);
-          setIsRoundActive(true);
-          setCurrentRound(payload.new);
-          // Start the multiplier animation
-          startMultiplierAnimation();
         }
       })
       .subscribe();
@@ -379,16 +310,16 @@ export const useMultiplayerCrashGame = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchCurrentRound, fetchGameHistory, startMultiplierAnimation]);
+  }, [fetchGameHistory]);
   
   // Place bet function
-  const handlePlaceBet = useCallback(async (amount: number) => {
+  const handlePlaceBet = useCallback(async (amount: number, autoCashoutAt?: number | null) => {
     if (!isAuthenticated) {
       toast.error('Please sign in to place bets', { position: 'top-center' });
       return;
     }
     
-    if (!currentRound) {
+    if (!currentRound || !currentRound.round_id) {
       toast.error('No active round found', { position: 'top-center' });
       return;
     }
@@ -412,8 +343,9 @@ export const useMultiplayerCrashGame = () => {
       const response = await supabase.functions.invoke('crash-game-engine', {
         body: {
           action: 'place_bet',
-          roundId: currentRound.id,
-          amount: amount
+          roundId: currentRound.round_id,
+          amount: amount,
+          autoCashoutAt: autoCashoutAt
         }
       });
       
@@ -450,7 +382,7 @@ export const useMultiplayerCrashGame = () => {
       return;
     }
     
-    if (!currentRound) {
+    if (!currentRound || !currentRound.round_id) {
       toast.error('No active round found', { position: 'top-center' });
       return;
     }
@@ -471,7 +403,7 @@ export const useMultiplayerCrashGame = () => {
       const response = await supabase.functions.invoke('crash-game-engine', {
         body: {
           action: 'cashout',
-          roundId: currentRound.id,
+          roundId: currentRound.round_id,
           multiplier: cashoutMultiplier
         }
       });
@@ -502,27 +434,6 @@ export const useMultiplayerCrashGame = () => {
     }
   }, [currentMultiplier, currentRound, fetchPlayers, gameState, isAuthenticated, isBetPlaced, isRoundActive, playerBet, playerWin]);
   
-  // Handle sign in/out
-  const handleSignIn = useCallback(async () => {
-    try {
-      await supabase.auth.signInWithOtp({
-        email: prompt('Enter your email to sign in/sign up:') || '',
-      });
-      toast.success("Check your email for the login link", { position: 'top-center' });
-    } catch (error) {
-      toast.error("Sign in failed. Please try again.", { position: 'top-center' });
-    }
-  }, []);
-
-  const handleSignOut = useCallback(async () => {
-    try {
-      await supabase.auth.signOut();
-      toast.success("Signed out successfully", { position: 'top-center' });
-    } catch (error) {
-      toast.error("Sign out failed. Please try again.", { position: 'top-center' });
-    }
-  }, []);
-  
   return {
     gameState,
     countdownTimer,
@@ -539,7 +450,5 @@ export const useMultiplayerCrashGame = () => {
     currentRound,
     handlePlaceBet,
     handleCashout,
-    handleSignIn,
-    handleSignOut,
   };
 };

@@ -11,6 +11,8 @@ export enum GAME_STATE {
 export interface HistoryItem {
   id: string;
   multiplier: number;
+  hash?: string;
+  timestamp: string;
 }
 
 // Player interface
@@ -48,19 +50,21 @@ export interface GameHistory {
   players: Player[];
 }
 
-// Hook return type
-export interface CrashGameHook {
-  userBalance: number;
-  gameState: string;
+// Multiplayer crash game hook return type
+export interface MultiplayerCrashGameHook {
+  gameState: GAME_STATE;
   countdownTimer: number | null;
-  crashPoint: number | null;
   currentMultiplier: number;
+  crashPoint: number | null;
+  isRoundActive: boolean;
+  userBalance: number;
+  playerBet: number | null;
   playerWin: number | null;
   isBetPlaced: boolean;
   gameHistory: HistoryItem[];
   players: Player[];
-  handlePlaceBet: (amount: number, autoCashout: number | null) => void;
-  handleCashout: () => void;
-  handleCrash: (value: number) => void;
-  setCurrentMultiplier: React.Dispatch<React.SetStateAction<number>>;
+  isAuthenticated: boolean;
+  currentRound: any;
+  handlePlaceBet: (amount: number, autoCashout?: number | null) => Promise<void>;
+  handleCashout: () => Promise<void>;
 }

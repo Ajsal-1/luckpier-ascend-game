@@ -30,7 +30,7 @@ const CrashGame: React.FC = () => {
     handleCashout,
   } = useMultiplayerCrashGame();
 
-  const onPlaceBet = (amount: number) => {
+  const onPlaceBet = (amount: number, autoCashout?: number | null) => {
     if (!isAuthenticated) {
       toast.error("Please sign in to place bets", { position: 'top-center' });
       setIsAuthModalOpen(true);
@@ -43,7 +43,7 @@ const CrashGame: React.FC = () => {
       return;
     }
     
-    handlePlaceBet(amount);
+    handlePlaceBet(amount, autoCashout);
     
     // Refresh wallet balance after placing bet
     setTimeout(() => {

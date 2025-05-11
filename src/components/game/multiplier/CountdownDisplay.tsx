@@ -1,18 +1,24 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { GAME_STATE } from '@/hooks/game/types';
 
 interface CountdownDisplayProps {
-  gameState: string;
+  gameState: GAME_STATE;
   displayValue: string;
+  probablyFairHash?: string;
 }
 
-const CountdownDisplay: React.FC<CountdownDisplayProps> = ({ gameState, displayValue }) => {
+const CountdownDisplay: React.FC<CountdownDisplayProps> = ({ 
+  gameState, 
+  displayValue,
+  probablyFairHash
+}) => {
   return (
     <AnimatePresence>
-      {gameState === 'countdown' && (
+      {gameState === GAME_STATE.COUNTDOWN && (
         <motion.div
-          className="absolute inset-0 flex items-center justify-center bg-black/30 z-20"
+          className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm z-20"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -26,6 +32,17 @@ const CountdownDisplay: React.FC<CountdownDisplayProps> = ({ gameState, displayV
           >
             {Math.ceil(parseFloat(displayValue))}
           </motion.div>
+          
+          {probablyFairHash && (
+            <motion.div
+              className="mt-4 text-xs text-white/70"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+            >
+              Round Hash: {probablyFairHash.substring(0, 8)}...
+            </motion.div>
+          )}
         </motion.div>
       )}
     </AnimatePresence>
