@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMultiplayerCrashGame } from '@/hooks/game/useMultiplayerCrashGame';
 import { GAME_STATE } from '@/hooks/game/types';
 import Multiplier from '@/components/game/Multiplier';
@@ -31,7 +31,15 @@ const CrashGame: React.FC = () => {
     currentRound,
   } = useMultiplayerCrashGame();
 
-  const onPlaceBet = (amount: number, autoCashout?: number | null) => {
+  // Update wallet balance whenever player bet or win changes
+  useEffect(() => {
+    // Only refresh when authenticated
+    if (isAuthenticated) {
+      refreshWalletBalance();
+    }
+  }, [playerBet, playerWin, isAuthenticated, refreshWalletBalance]);
+
+  const onPlaceBet = async (amount: number, autoCashout?: number | null) => {
     if (!isAuthenticated) {
       toast.error("Please sign in to place bets", { position: 'top-center' });
       setIsAuthModalOpen(true);
@@ -44,27 +52,35 @@ const CrashGame: React.FC = () => {
       return;
     }
     
-    handlePlaceBet(amount, autoCashout);
-    
-    // Refresh wallet balance after placing bet
-    setTimeout(() => {
-      refreshWalletBalance();
-    }, 1000);
+    try {
+      await handlePlaceBet(amount, autoCashout);
+      
+      // Refresh wallet balance after placing bet
+      setTimeout(() => {
+        refreshWalletBalance();
+      }, 500);
+    } catch (error: any) {
+      toast.error(`Failed to place bet: ${error.message || "Unknown error"}`, { position: 'top-center' });
+    }
   };
 
-  const onCashout = () => {
+  const onCashout = async () => {
     if (!isAuthenticated) {
       toast.error("Please sign in to cash out", { position: 'top-center' });
       setIsAuthModalOpen(true);
       return;
     }
     
-    handleCashout();
-    
-    // Refresh wallet balance after cashing out
-    setTimeout(() => {
-      refreshWalletBalance();
-    }, 1000);
+    try {
+      await handleCashout();
+      
+      // Refresh wallet balance after cashing out
+      setTimeout(() => {
+        refreshWalletBalance();
+      }, 500);
+    } catch (error: any) {
+      toast.error(`Failed to cash out: ${error.message || "Unknown error"}`, { position: 'top-center' });
+    }
   };
 
   const getGameStateMessage = () => {

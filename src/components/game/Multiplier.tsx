@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import MultiplierLogic from './multiplier/MultiplierLogic';
 import CrashEffects from './multiplier/CrashEffects';
 import CountdownDisplay from './multiplier/CountdownDisplay';
 import MultiplierDisplay from './multiplier/MultiplierDisplay';
@@ -19,7 +18,6 @@ const Multiplier: React.FC<MultiplierProps> = ({
   gameState,
 }) => {
   // Simple wrapper that directly passes values to display components
-  // Chart data is no longer used, focusing only on the multiplier display
   return (
     <div 
       className={cn(
@@ -33,7 +31,7 @@ const Multiplier: React.FC<MultiplierProps> = ({
         crashEffectActive={isCrashed} // Simplified - show effects whenever crashed
       />
 
-      {/* Countdown Display */}
+      {/* Countdown Display - Now with smoother countdown animation */}
       <CountdownDisplay 
         gameState={gameState as GAME_STATE} 
         displayValue={currentMultiplier.toFixed(2) + "x"} 

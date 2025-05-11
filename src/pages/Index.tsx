@@ -2,12 +2,16 @@
 import React from 'react';
 import CrashGame from '@/components/game/CrashGame';
 
-// Home page (Crash Game)
 const Index = () => {
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-2">LuckPier Multiplayer Crash Game</h1>
-      <p className="text-gray-400 mb-4">Play with others in real-time! Bet, watch the multiplier rise, and cash out before it crashes.</p>
+      <h1 className="text-2xl md:text-3xl font-bold mb-2">
+        LuckPier Multiplayer Crash Game
+      </h1>
+      <p className="text-gray-400 mb-6">
+        Place your bets, watch the multiplier rise, and cash out before it crashes! 
+        Try to predict the perfect moment to secure your winnings.
+      </p>
       <CrashGame />
     </div>
   );

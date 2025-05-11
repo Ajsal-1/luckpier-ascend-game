@@ -28,20 +28,27 @@ export const useMultiplayerCrashGame = () => {
   const lastCrashTime = useRef<number | null>(null);
   const postCrashCooldownTime = useRef<number>(6); // 6 seconds cooldown after crash
   const lastMultiplierRef = useRef<number>(1); // Track the last multiplier to prevent decreases
+  const startTimeRef = useRef<number | null>(null); // Track animation start time
+  const growthRateRef = useRef<number>(0.06); // Growth rate for multiplier (adjust for faster/slower)
 
-  // Calculate multiplier based on start time
-  const calculateCurrentMultiplier = useCallback((startTime: string): number => {
-    const start = new Date(startTime).getTime();
-    const now = Date.now();
-    const elapsedMs = now - start;
+  // Calculate multiplier based on start time - now uses client-side animation for smoothness
+  const calculateCurrentMultiplier = useCallback((timestamp: number): number => {
+    // Only calculate if we have a start time
+    if (!startTimeRef.current) return 1.0;
     
-    // Only calculate if we've passed the start time
-    if (elapsedMs <= 0) return 1.0;
+    const elapsedMs = timestamp - startTimeRef.current;
     
-    // Using the formula: multiplier = e^(0.06 * elapsedSeconds)
+    // Calculate elapsed time in seconds
     const elapsedSeconds = elapsedMs / 1000;
-    const multiplier = Math.pow(Math.E, 0.06 * elapsedSeconds);
-    return Math.max(1, parseFloat(multiplier.toFixed(2)));
+    
+    // Using the formula: multiplier = e^(growthRate * elapsedSeconds)
+    // This creates an exponential curve that grows faster over time
+    const multiplier = Math.pow(Math.E, growthRateRef.current * elapsedSeconds);
+    
+    // Format to 2 decimal places
+    const formattedMultiplier = Math.floor(multiplier * 100) / 100;
+    
+    return Math.max(1, formattedMultiplier);
   }, []);
 
   // Fetch game history
@@ -104,42 +111,47 @@ export const useMultiplayerCrashGame = () => {
     fetchGameHistory();
   }, [fetchGameHistory]);
   
-  // Update multiplier animation - MODIFIED to ensure multiplier never decreases
-  const updateMultiplier = useCallback(() => {
-    if (currentRound && currentRound.status === 'running' && currentRound.start_time) {
-      const newMultiplier = calculateCurrentMultiplier(currentRound.start_time);
-      
-      // Only update the multiplier if it's higher than the current one
-      // This ensures the multiplier never decreases
-      if (newMultiplier > lastMultiplierRef.current) {
-        setCurrentMultiplier(newMultiplier);
-        lastMultiplierRef.current = newMultiplier;
-      }
-      
-      // Check if we've reached the crash point (client-side prediction)
-      if (crashPoint && lastMultiplierRef.current >= crashPoint) {
-        if (gameState !== GAME_STATE.CRASHED) {
-          console.log(`Client detected crash at ${lastMultiplierRef.current.toFixed(2)}x`);
-          setGameState(GAME_STATE.CRASHED);
-          setIsRoundActive(false);
-          // Stop the animation
-          if (animationFrameRef.current) {
-            cancelAnimationFrame(animationFrameRef.current);
-            animationFrameRef.current = null;
-          }
-          return;
-        }
-      }
-      
-      // Continue the animation
-      animationFrameRef.current = requestAnimationFrame(updateMultiplier);
+  // Smooth multiplier animation using requestAnimationFrame
+  const animateMultiplier = useCallback((timestamp: number) => {
+    // If this is the first frame, set the start time
+    if (!startTimeRef.current) {
+      startTimeRef.current = timestamp;
     }
-  }, [calculateCurrentMultiplier, crashPoint, currentRound, gameState]);
+    
+    // Calculate the new multiplier based on elapsed time
+    const newMultiplier = calculateCurrentMultiplier(timestamp);
+    
+    // Only update if it's higher than the previous one - ensures smooth increasing values
+    if (newMultiplier > lastMultiplierRef.current) {
+      setCurrentMultiplier(newMultiplier);
+      lastMultiplierRef.current = newMultiplier;
+    }
+    
+    // Check if we've reached the crash point (client-side prediction)
+    if (crashPoint && lastMultiplierRef.current >= crashPoint) {
+      if (gameState !== GAME_STATE.CRASHED) {
+        console.log(`Client detected crash at ${lastMultiplierRef.current.toFixed(2)}x`);
+        setGameState(GAME_STATE.CRASHED);
+        setIsRoundActive(false);
+        // Stop the animation
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+          animationFrameRef.current = null;
+        }
+        return;
+      }
+    }
+    
+    // Continue the animation
+    animationFrameRef.current = requestAnimationFrame(animateMultiplier);
+  }, [calculateCurrentMultiplier, crashPoint, gameState]);
   
   // Start the multiplier animation
   const startMultiplierAnimation = useCallback(() => {
-    // Reset the last multiplier to 1 when starting a new round
+    // Reset the multiplier and animation state
+    setCurrentMultiplier(1);
     lastMultiplierRef.current = 1;
+    startTimeRef.current = null;
     
     // Clean up any existing animation
     if (animationFrameRef.current) {
@@ -147,8 +159,8 @@ export const useMultiplayerCrashGame = () => {
     }
     
     // Start a new animation
-    animationFrameRef.current = requestAnimationFrame(updateMultiplier);
-  }, [updateMultiplier]);
+    animationFrameRef.current = requestAnimationFrame(animateMultiplier);
+  }, [animateMultiplier]);
   
   // Fetch user authentication status
   useEffect(() => {
@@ -178,7 +190,7 @@ export const useMultiplayerCrashGame = () => {
     });
     
     return () => {
-      authListener.subscription.unsubscribe();
+      authListener?.subscription.unsubscribe();
     };
   }, []);
   
@@ -187,15 +199,9 @@ export const useMultiplayerCrashGame = () => {
     if (!currentRound || !currentRound.round_id) return;
     
     try {
-      // FIXED: Use correct query that doesn't try to join with profiles
       const { data, error } = await supabase
         .from('player_bets')
-        .select(`
-          id,
-          bet_amount,
-          cashed_out_multiplier,
-          user_id
-        `)
+        .select('id, bet_amount, cashed_out_multiplier, user_id')
         .eq('round_id', currentRound.round_id);
         
       if (error) throw error;
@@ -203,7 +209,7 @@ export const useMultiplayerCrashGame = () => {
       if (data) {
         const formattedPlayers = data.map((bet: any) => ({
           id: bet.id,
-          name: bet.user_id.substring(0, 8) || 'Anonymous', // Use part of user_id instead of username
+          name: bet.user_id.substring(0, 8) || 'Anonymous',
           amount: bet.bet_amount,
           multiplier: bet.cashed_out_multiplier,
           userId: bet.user_id
@@ -219,8 +225,6 @@ export const useMultiplayerCrashGame = () => {
   // Handle crash event with retry logic
   const pollGameEngine = useCallback(async () => {
     try {
-      console.log("Polling game engine...");
-      
       // Call our edge function with specific options to ensure proper request
       const response = await supabase.functions.invoke('crash-game-engine', {
         method: 'GET' // Explicitly use GET method
@@ -251,17 +255,9 @@ export const useMultiplayerCrashGame = () => {
         return;
       }
       
-      console.log(`Game engine status: ${data.status}`, data);
-      
       // Update game state based on response
       if (data.status === 'playing') {
         setCurrentRound(data);
-        
-        // Ensure multiplier never decreases by comparing with stored last value
-        if (data.current_multiplier > lastMultiplierRef.current) {
-          setCurrentMultiplier(data.current_multiplier);
-          lastMultiplierRef.current = data.current_multiplier;
-        }
         
         // Ensure game state is PLAYING
         if (gameState !== GAME_STATE.PLAYING) {
@@ -341,6 +337,7 @@ export const useMultiplayerCrashGame = () => {
           setCurrentMultiplier(1);
           lastMultiplierRef.current = 1; // Reset the last multiplier
           setCrashPoint(null);
+          startTimeRef.current = null; // Reset animation start time
           
           // Start the multiplier animation for all users
           startMultiplierAnimation();
@@ -364,6 +361,166 @@ export const useMultiplayerCrashGame = () => {
       gameEngineErrorCount.current++;
     }
   }, [fetchGameHistory, gameState, isBetPlaced, playerWin, startMultiplierAnimation, updateGameHistory]);
+  
+  // Place bet function - IMPROVED ERROR HANDLING
+  const handlePlaceBet = useCallback(async (amount: number, autoCashoutAt?: number | null) => {
+    if (!isAuthenticated) {
+      throw new Error('Please sign in to place bets');
+    }
+    
+    if (!currentRound || !currentRound.round_id) {
+      throw new Error('No active round found');
+    }
+    
+    // Allow bets during countdown or waiting phase only
+    if (gameState !== GAME_STATE.COUNTDOWN && gameState !== GAME_STATE.WAITING) {
+      throw new Error('You can only place bets before the round starts');
+    }
+    
+    if (amount <= 0) {
+      throw new Error('Bet amount must be greater than zero');
+    }
+    
+    console.log(`Attempting to place bet: $${amount}`);
+    
+    // Get the current session for the auth header
+    const { data: sessionData } = await supabase.auth.getSession();
+    
+    if (!sessionData.session) {
+      throw new Error('Authentication session not found');
+    }
+    
+    const response = await supabase.functions.invoke('crash-game-engine', {
+      method: 'POST',
+      body: {
+        action: 'place_bet',
+        roundId: currentRound.round_id,
+        amount: amount,
+        autoCashoutAt: autoCashoutAt
+      },
+      // Explicitly include auth header for edge function
+      headers: {
+        Authorization: `Bearer ${sessionData.session.access_token}`
+      }
+    });
+    
+    console.log("Bet response:", response); // Log full response for debugging
+    
+    if (response.error) {
+      const errorMessage = response.error.message || 'Failed to place bet';
+      console.error('Error placing bet:', response.error);
+      throw new Error(errorMessage);
+    }
+    
+    if (response.data && response.data.error) {
+      console.error('Server error placing bet:', response.data.error);
+      throw new Error(response.data.error);
+    }
+    
+    if (!response.data || !response.data.success) {
+      console.error('Failed to place bet - no success response');
+      throw new Error('Failed to place bet - no success response');
+    }
+    
+    console.log(`Bet placed: $${amount} with auto-cashout at ${autoCashoutAt || 'none'}`);
+    
+    // Update local state
+    setPlayerBet(amount);
+    setIsBetPlaced(true);
+    setPlayerWin(null);
+    
+    toast.success('Bet placed successfully!', { position: 'top-center' });
+    
+    // Refresh player list
+    fetchPlayers();
+    
+    return response.data;
+  }, [currentRound, fetchPlayers, gameState, isAuthenticated]);
+  
+  // Cashout function - IMPROVED ERROR HANDLING
+  const handleCashout = useCallback(async () => {
+    if (!isAuthenticated) {
+      throw new Error('Please sign in to cash out');
+    }
+    
+    if (gameState !== GAME_STATE.PLAYING) {
+      throw new Error('Round is not active - cannot cash out');
+    }
+    
+    if (!isRoundActive) {
+      throw new Error('The round is not currently active');
+    }
+    
+    if (!currentRound || !currentRound.round_id) {
+      throw new Error('No active round found');
+    }
+    
+    if (!isBetPlaced || playerBet === null) {
+      throw new Error('You have not placed a bet in this round');
+    }
+    
+    if (playerWin !== null) {
+      throw new Error('You have already cashed out this round');
+    }
+    
+    const cashoutMultiplier = currentMultiplier;
+    console.log(`Attempting cashout at ${cashoutMultiplier.toFixed(2)}x`);
+    
+    // Get the current session for the auth header
+    const { data: sessionData } = await supabase.auth.getSession();
+    
+    if (!sessionData.session) {
+      throw new Error('Authentication session not found');
+    }
+    
+    const response = await supabase.functions.invoke('crash-game-engine', {
+      method: 'POST',
+      body: {
+        action: 'cashout',
+        roundId: currentRound.round_id,
+        multiplier: cashoutMultiplier
+      },
+      // Explicitly include auth header for edge function
+      headers: {
+        Authorization: `Bearer ${sessionData.session.access_token}`
+      }
+    });
+    
+    console.log("Cashout response:", response); // Log full response for debugging
+    
+    if (response.error) {
+      const errorMessage = response.error.message || 'Failed to cash out';
+      console.error('Error cashing out:', response.error);
+      throw new Error(errorMessage);
+    }
+    
+    if (response.data && response.data.error) {
+      console.error('Server error cashing out:', response.data.error);
+      throw new Error(response.data.error);
+    }
+    
+    if (!response.data || !response.data.success) {
+      console.error('Failed to cash out - no success response');
+      throw new Error('Failed to cash out - no success response');
+    }
+    
+    // Update local state
+    setPlayerWin(cashoutMultiplier);
+    
+    // Calculate winnings
+    const winnings = playerBet * cashoutMultiplier;
+    const profit = winnings - playerBet;
+    
+    toast.success(
+      `You won $${profit.toFixed(2)}! Total: $${winnings.toFixed(2)}`, 
+      { position: 'top-center' }
+    );
+    
+    // Refresh player list
+    fetchPlayers();
+    
+    return response.data;
+  }, [currentMultiplier, currentRound, fetchPlayers, gameState, isAuthenticated, isBetPlaced, isRoundActive, playerBet, playerWin]);
   
   // Set up polling and clean up on unmount
   useEffect(() => {
@@ -400,7 +557,7 @@ export const useMultiplayerCrashGame = () => {
     };
   }, [fetchPlayers]);
   
-  // Set up realtime subscription for rounds table
+  // Realtime subscription for crash events
   useEffect(() => {
     const channel = supabase
       .channel('schema-db-changes')
@@ -415,25 +572,22 @@ export const useMultiplayerCrashGame = () => {
         if (payload.new.status === 'completed' && payload.old.status === 'running') {
           console.log(`Realtime update: crashed at ${payload.new.crash_multiplier}x`);
           setCrashPoint(payload.new.crash_multiplier);
-          setGameState(GAME_STATE.CRASHED);
-          setIsRoundActive(false);
           
-          // Refresh game history
-          fetchGameHistory();
-          
-          // If player had a bet and didn't cash out, they lost
-          if (isBetPlaced && playerWin === null) {
-            toast.error(`Crashed at ${payload.new.crash_multiplier.toFixed(2)}x! You lost your bet.`, {
-              position: 'top-center',
-              duration: 5000 // Show for 5 seconds
-            });
+          // Only update state if not already crashed
+          if (gameState !== GAME_STATE.CRASHED) {
+            setGameState(GAME_STATE.CRASHED);
+            setIsRoundActive(false);
             
-            // Reset player state
-            setTimeout(() => {
-              setPlayerBet(null);
-              setPlayerWin(null);
-              setIsBetPlaced(false);
-            }, 5000); // Extended from 1 second to 5 seconds
+            // Refresh game history
+            fetchGameHistory();
+            
+            // If player had a bet and didn't cash out, they lost
+            if (isBetPlaced && playerWin === null) {
+              toast.error(`Crashed at ${payload.new.crash_multiplier.toFixed(2)}x! You lost your bet.`, {
+                position: 'top-center',
+                duration: 5000 // Show for 5 seconds
+              });
+            }
           }
         }
       })
@@ -442,218 +596,9 @@ export const useMultiplayerCrashGame = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchGameHistory, isBetPlaced, playerWin]);
-  
-  // Set up countdown timer for game phases
-  useEffect(() => {
-    if (countdownTimer !== null && countdownTimer > 0 && gameState === GAME_STATE.COUNTDOWN) {
-      console.log(`Countdown: ${countdownTimer.toFixed(1)}s`);
-      
-      // Clean up any existing interval
-      if (countdownIntervalRef.current) {
-        clearInterval(countdownIntervalRef.current);
-      }
-      
-      // Start a new interval that updates 10 times per second
-      countdownIntervalRef.current = window.setInterval(() => {
-        setCountdownTimer(prev => {
-          if (prev === null) return null;
-          const newValue = prev - 0.1;
-          
-          // When timer reaches zero, prepare for next phase
-          if (newValue <= 0) {
-            clearInterval(countdownIntervalRef.current!);
-            countdownIntervalRef.current = null;
-            return 0;
-          }
-          
-          return parseFloat(newValue.toFixed(1));
-        });
-      }, 100);
-    } else if (countdownIntervalRef.current && (countdownTimer === 0 || gameState !== GAME_STATE.COUNTDOWN)) {
-      // Clean up interval when no longer in countdown
-      clearInterval(countdownIntervalRef.current);
-      countdownIntervalRef.current = null;
-    }
-    
-    return () => {
-      if (countdownIntervalRef.current) {
-        clearInterval(countdownIntervalRef.current);
-      }
-    };
-  }, [countdownTimer, gameState]);
-  
-  // Place bet function - IMPROVED ERROR HANDLING
-  const handlePlaceBet = useCallback(async (amount: number, autoCashoutAt?: number | null) => {
-    if (!isAuthenticated) {
-      toast.error('Please sign in to place bets', { position: 'top-center' });
-      return;
-    }
-    
-    if (!currentRound || !currentRound.round_id) {
-      toast.error('No active round found', { position: 'top-center' });
-      return;
-    }
-    
-    // Allow bets during countdown or waiting phase only
-    if (gameState !== GAME_STATE.COUNTDOWN && gameState !== GAME_STATE.WAITING) {
-      toast.error('You can only place bets before the round starts', { position: 'top-center' });
-      return;
-    }
-    
-    if (amount <= 0) {
-      toast.error('Bet amount must be greater than zero', { position: 'top-center' });
-      return;
-    }
-    
-    if (amount > userBalance) {
-      toast.error('Insufficient balance for this bet', { position: 'top-center' });
-      return;
-    }
-    
-    try {
-      console.log(`Attempting to place bet: $${amount}`);
-      
-      const response = await supabase.functions.invoke('crash-game-engine', {
-        method: 'POST',
-        body: {
-          action: 'place_bet',
-          roundId: currentRound.round_id,
-          amount: amount,
-          autoCashoutAt: autoCashoutAt
-        }
-      });
-      
-      console.log("Bet response:", response); // Log full response for debugging
-      
-      if (response.error) {
-        const errorMessage = response.error.message || 'Failed to place bet';
-        toast.error(`Error: ${errorMessage}`, { position: 'top-center' });
-        console.error('Error placing bet:', response.error);
-        return;
-      }
-      
-      if (response.data && response.data.error) {
-        toast.error(`Server error: ${response.data.error}`, { position: 'top-center' });
-        console.error('Server error placing bet:', response.data.error);
-        return;
-      }
-      
-      if (!response.data || !response.data.success) {
-        toast.error('Failed to place bet - no success response', { position: 'top-center' });
-        console.error('Failed to place bet - no success response');
-        return;
-      }
-      
-      console.log(`Bet placed: $${amount} with auto-cashout at ${autoCashoutAt || 'none'}`);
-      
-      // Update local state
-      setPlayerBet(amount);
-      setIsBetPlaced(true);
-      setPlayerWin(null);
-      
-      // Update user balance (optimistically)
-      setUserBalance(prev => prev - amount);
-      
-      toast.success('Bet placed successfully!', { position: 'top-center' });
-      
-      // Refresh player list
-      fetchPlayers();
-    } catch (error: any) {
-      console.error('Error placing bet:', error);
-      toast.error(`Error placing bet: ${error.message}`, { position: 'top-center' });
-    }
-  }, [currentRound, fetchPlayers, gameState, isAuthenticated, userBalance]);
-  
-  // Cashout function
-  const handleCashout = useCallback(async () => {
-    if (!isAuthenticated) {
-      toast.error('Please sign in to cash out', { position: 'top-center' });
-      return;
-    }
-    
-    if (gameState !== GAME_STATE.PLAYING) {
-      toast.error('Round is not active - cannot cash out', { position: 'top-center' });
-      return;
-    }
-    
-    if (!isRoundActive) {
-      toast.error('The round is not currently active', { position: 'top-center' });
-      return;
-    }
-    
-    if (!currentRound || !currentRound.round_id) {
-      toast.error('No active round found', { position: 'top-center' });
-      return;
-    }
-    
-    if (!isBetPlaced || playerBet === null) {
-      toast.error('You have not placed a bet in this round', { position: 'top-center' });
-      return;
-    }
-    
-    if (playerWin !== null) {
-      toast.error('You have already cashed out this round', { position: 'top-center' });
-      return;
-    }
-    
-    try {
-      const cashoutMultiplier = currentMultiplier;
-      console.log(`Attempting cashout at ${cashoutMultiplier.toFixed(2)}x`);
-      
-      const response = await supabase.functions.invoke('crash-game-engine', {
-        method: 'POST',
-        body: {
-          action: 'cashout',
-          roundId: currentRound.round_id,
-          multiplier: cashoutMultiplier
-        }
-      });
-      
-      console.log("Cashout response:", response); // Log full response for debugging
-      
-      if (response.error) {
-        const errorMessage = response.error.message || 'Failed to cash out';
-        toast.error(`Error: ${errorMessage}`, { position: 'top-center' });
-        console.error('Error cashing out:', response.error);
-        return;
-      }
-      
-      if (response.data && response.data.error) {
-        toast.error(`Server error: ${response.data.error}`, { position: 'top-center' });
-        console.error('Server error cashing out:', response.data.error);
-        return;
-      }
-      
-      if (!response.data || !response.data.success) {
-        toast.error('Failed to cash out - no success response', { position: 'top-center' });
-        console.error('Failed to cash out - no success response');
-        return;
-      }
-      
-      // Update local state
-      setPlayerWin(cashoutMultiplier);
-      
-      // Calculate winnings
-      const winnings = playerBet * cashoutMultiplier;
-      const profit = winnings - playerBet;
-      
-      // Update user balance (optimistically)
-      setUserBalance(prev => prev + winnings);
-      
-      toast.success(
-        `You won $${profit.toFixed(2)}! Total: $${winnings.toFixed(2)}`, 
-        { position: 'top-center' }
-      );
-      
-      // Refresh player list
-      fetchPlayers();
-    } catch (error: any) {
-      console.error('Error cashing out:', error);
-      toast.error(`Error cashing out: ${error.message}`, { position: 'top-center' });
-    }
-  }, [currentMultiplier, currentRound, fetchPlayers, gameState, isAuthenticated, isBetPlaced, isRoundActive, playerBet, playerWin]);
-  
+  }, [fetchGameHistory, gameState, isBetPlaced, playerWin]);
+
+  // Export all required state and functions
   return {
     gameState,
     countdownTimer,

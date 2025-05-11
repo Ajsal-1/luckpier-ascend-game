@@ -26,20 +26,20 @@ const GameActionButton: React.FC<GameActionButtonProps> = ({
     return Math.max(0, seconds).toFixed(1);
   };
   
-  // FIXED: Only show "Cash Out" when the game is playing AND a bet has been placed
-  const showCashOut = isPlaying && isBetPlaced;
+  // Only show "Cash Out" when the game is playing AND a bet has been placed AND there's no win yet
+  const showCashOut = isPlaying && isBetPlaced && !hasWon;
   
   if (showCashOut) {
     return (
       <button 
         className={cn(
           "w-full py-3 text-base font-medium rounded-md transition-all",
-          hasWon || isCrashed ? 
+          isCrashed ? 
             "bg-amber-600/50 text-white/70 cursor-not-allowed" : 
             "bg-amber-500 hover:bg-amber-600 text-white animate-pulse"
         )}
         onClick={onClick}
-        disabled={hasWon || isCrashed}
+        disabled={isCrashed || hasWon}
       >
         Cash Out
       </button>
