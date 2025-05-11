@@ -2,6 +2,8 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { HistoryItem } from '@/hooks/game/types';
+import { Badge } from '@/components/ui/badge';
+import { motion } from 'framer-motion';
 
 interface GameHistoryProps {
   history: HistoryItem[];
@@ -16,30 +18,40 @@ const GameHistory: React.FC<GameHistoryProps> = ({ history }) => {
   };
   
   return (
-    <div className="w-full overflow-x-auto py-3 mb-3 -mt-1">
-      <div className="flex space-x-2 px-1">
-        {history.map((item) => (
-          <div 
+    <div className="w-full py-4 mb-3">
+      <div className="flex items-center mb-2 px-1">
+        <h3 className="text-sm font-semibold text-gray-400">Recent Crashes</h3>
+        <Badge variant="secondary" className="ml-2 text-xs">
+          {history.length}
+        </Badge>
+      </div>
+      
+      <div className="flex space-x-2 px-1 overflow-x-auto pb-1 hide-scrollbar">
+        {history.map((item, index) => (
+          <motion.div 
             key={item.id}
             className="text-center"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: index * 0.05 }}
           >
             <div 
               className={cn(
-                "flex items-center justify-center min-w-[56px] h-9 rounded font-medium text-sm border",
+                "flex items-center justify-center min-w-[62px] h-10 rounded-lg font-medium text-sm border shadow-sm",
               )}
               style={{
-                backgroundColor: `${getMultiplierColor(item.multiplier)}20`,
-                borderColor: `${getMultiplierColor(item.multiplier)}40`,
+                backgroundColor: `${getMultiplierColor(item.multiplier)}15`,
+                borderColor: `${getMultiplierColor(item.multiplier)}30`,
                 color: getMultiplierColor(item.multiplier)
               }}
             >
               {item.multiplier.toFixed(2)}x
             </div>
-          </div>
+          </motion.div>
         ))}
         
         {history.length === 0 && (
-          <div className="text-gray-500 w-full text-center py-2">
+          <div className="text-gray-500 w-full text-center py-3 bg-gray-800/30 rounded-lg border border-gray-700/30">
             Loading game history...
           </div>
         )}
@@ -47,5 +59,17 @@ const GameHistory: React.FC<GameHistoryProps> = ({ history }) => {
     </div>
   );
 };
+
+// Add this to your index.css or create a style block
+const styles = document.createElement('style');
+styles.innerHTML = `
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}`;
+document.head.appendChild(styles);
 
 export default GameHistory;
