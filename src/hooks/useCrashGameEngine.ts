@@ -67,6 +67,7 @@ export const useCrashGameEngine = () => {
   
   // Reference to track if a round update is in progress
   const isUpdatingRoundRef = useRef<boolean>(false);
+  const resetFailedRef = useRef<boolean>(false);
   
   // Handle round crashes with history updates
   const handleGameCrash = useCallback((multiplier: number) => {
@@ -83,6 +84,7 @@ export const useCrashGameEngine = () => {
       // Update player states for those who didn't cash out
       if (isBetPlaced && playerWin === null) {
         // Player lost their bet
+        console.log("Player bet was active but not cashed out - marked as lost");
         setPlayerBet(null);
         setPlayerAutoCashout(null);
       }
@@ -107,14 +109,19 @@ export const useCrashGameEngine = () => {
   useEffect(() => {
     if (gameState === GAME_STATE.CRASHED) {
       if (isBetPlaced && playerWin === null) {
-        // Player lost their bet
-        setTimeout(() => {
+        // Player lost their bet - ensure UI reflects this immediately
+        // Add a small delay to allow UI to show crash state
+        console.log("Resetting player state after crash");
+        const resetTimer = setTimeout(() => {
           setPlayerBet(null);
           setPlayerAutoCashout(null);
           setPlayerWin(null);
           setIsBetPlaced(false);
           setBetError(null);
-        }, 1000); // Small delay to allow UI to show crash state
+          resetFailedRef.current = false;
+        }, 1000);
+        
+        return () => clearTimeout(resetTimer);
       }
     }
   }, [gameState, isBetPlaced, playerWin, setPlayerBet, setPlayerAutoCashout, setPlayerWin, setIsBetPlaced, setBetError]);
@@ -122,9 +129,32 @@ export const useCrashGameEngine = () => {
   // When round ends, reset players for next round
   useEffect(() => {
     if (gameState === GAME_STATE.WAITING) {
+      console.log("Game state is WAITING, resetting players");
       resetPlayers();
     }
   }, [gameState, resetPlayers]);
+  
+  // Ensure game doesn't get stuck - emergency reset if state is inconsistent
+  useEffect(() => {
+    // If we have a bet placed but game is in WAITING or COUNTDOWN state for too long
+    const emergencyResetTimer = setTimeout(() => {
+      if (isBetPlaced && (gameState === GAME_STATE.WAITING || 
+         (gameState === GAME_STATE.COUNTDOWN && countdownTimer && countdownTimer < 0.5)) && 
+         !isProcessingBet && !isProcessingCashout && !resetFailedRef.current) {
+        // Something is stuck - let's try an emergency reset of player state
+        console.log("EMERGENCY RESET: Game appears stuck, resetting player state");
+        resetFailedRef.current = true;
+        setPlayerBet(null);
+        setPlayerAutoCashout(null);
+        setPlayerWin(null);
+        setIsBetPlaced(false);
+        setBetError(null);
+      }
+    }, 15000); // Check after 15 seconds of potential stuck state
+    
+    return () => clearTimeout(emergencyResetTimer);
+  }, [countdownTimer, gameState, isBetPlaced, isProcessingBet, isProcessingCashout, 
+      setBetError, setIsBetPlaced, setPlayerAutoCashout, setPlayerBet, setPlayerWin]);
   
   return {
     // Game state

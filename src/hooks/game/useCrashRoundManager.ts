@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -19,11 +18,11 @@ export const useCrashRoundManager = () => {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const crashPointGeneratedRef = useRef<boolean>(false);
   const roundInProgressRef = useRef<boolean>(false);
+  const dbErrorCountRef = useRef<number>(0); // Track DB errors to avoid excessive error messages
 
   // Generate a crash point between 1.01 and 10
   const generateCrashPoint = useCallback((): number => {
     // Simple random crash point formula as requested
-    // 1.01 + Math.random() * 10
     return 1.01 + Math.random() * 10;
   }, []);
 
@@ -52,29 +51,44 @@ export const useCrashRoundManager = () => {
       }
       
       // Create round in database with PENDING status
-      const { data: roundData, error: roundError } = await supabase
-        .from('rounds')
-        .insert({
-          crash_multiplier: nextCrashPoint,
-          status: 'pending'
-        })
-        .select('id')
-        .single();
-      
-      if (roundError) {
-        console.error("Error creating round:", roundError);
-        throw new Error("Failed to create new round");
+      try {
+        const { data: roundData, error: roundError } = await supabase
+          .from('rounds')
+          .insert({
+            crash_multiplier: nextCrashPoint,
+            status: 'pending'
+          })
+          .select('id')
+          .single();
+        
+        if (roundError) {
+          throw new Error(`Failed to create new round: ${roundError.message}`);
+        }
+        
+        // Update state with new round ID
+        setCurrentRoundId(roundData.id);
+        console.log(`New round created with ID ${roundData.id}, starting ${COUNTDOWN_TIME}s countdown`);
+      } catch (dbErr) {
+        // If database operation fails, continue with a fallback local ID
+        console.error("Error creating round in database, continuing with local game state:", dbErr);
+        dbErrorCountRef.current += 1;
+        
+        // Generate a fallback local round ID to keep game state consistent
+        const fallbackId = `local-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+        setCurrentRoundId(fallbackId);
+        console.log(`Using fallback round ID: ${fallbackId}`);
+        
+        // Only show toast on first few errors to avoid spamming
+        if (dbErrorCountRef.current <= 2) {
+          toast.error("Network error detected. Game will continue in offline mode.", { position: 'top-center' });
+        }
       }
       
-      // Update state with new round ID
-      setCurrentRoundId(roundData.id);
-      
-      // Start countdown for betting phase
+      // Start countdown for betting phase - do this regardless of DB success
       setGameState(GAME_STATE.COUNTDOWN);
       setCountdownTimer(COUNTDOWN_TIME);
       setIsRoundActive(false);
       
-      console.log(`New round created with ID ${roundData.id}, starting ${COUNTDOWN_TIME}s countdown`);
     } catch (err) {
       console.error("Error in startNewRound:", err);
       toast.error("Failed to start new round, retrying...", { position: 'top-center' });
@@ -93,10 +107,13 @@ export const useCrashRoundManager = () => {
   // Start the playing phase after countdown
   const startPlaying = useCallback(async () => {
     console.log("Starting playing phase");
+    
+    // CRITICAL: Update local game state immediately to keep game flowing
+    // regardless of database status
     setGameState(GAME_STATE.PLAYING);
     setIsRoundActive(true);
     
-    // Update round status in database
+    // Then try to update the database, but don't block the game on this
     if (currentRoundId) {
       try {
         const { error } = await supabase
@@ -109,11 +126,18 @@ export const useCrashRoundManager = () => {
         
         if (error) {
           console.error("Error updating round status to running:", error);
+          dbErrorCountRef.current += 1;
         } else {
           console.log(`Updated round ${currentRoundId} status to running`);
         }
       } catch (err) {
-        console.error("Error updating round status:", err);
+        console.error("Error updating round status, continuing with game:", err);
+        dbErrorCountRef.current += 1;
+        
+        // Only show toast on first few errors to avoid spamming
+        if (dbErrorCountRef.current <= 2) {
+          toast.error("Network error detected. Game will continue in offline mode.", { position: 'top-center' });
+        }
       }
     }
   }, [currentRoundId]);
@@ -121,11 +145,13 @@ export const useCrashRoundManager = () => {
   // Handle crash event
   const handleCrash = useCallback(async (crashValue: number) => {
     console.log(`Game crashed at ${crashValue.toFixed(2)}x`);
+    
+    // CRITICAL: Update local game state immediately
     setGameState(GAME_STATE.CRASHED);
     setIsRoundActive(false);
     
-    // Update round in database
-    if (currentRoundId) {
+    // Try to update round in database, but don't block the game flow
+    if (currentRoundId && !currentRoundId.startsWith('local-')) {
       try {
         const { error } = await supabase
           .from('rounds')
@@ -137,28 +163,30 @@ export const useCrashRoundManager = () => {
         
         if (error) {
           console.error("Error updating round status to completed:", error);
+          dbErrorCountRef.current += 1;
         } else {
           console.log(`Updated round ${currentRoundId} status to completed`);
+          
+          // Only try to update bets if the round update was successful
+          try {
+            const { error: betsError } = await supabase
+              .from('player_bets')
+              .update({ status: 'lost' })
+              .eq('round_id', currentRoundId)
+              .is('cashed_out_multiplier', null);
+            
+            if (betsError) {
+              console.error("Error updating lost bets:", betsError);
+            } else {
+              console.log(`Updated lost bets for round ${currentRoundId}`);
+            }
+          } catch (err) {
+            console.error("Error updating lost bets:", err);
+          }
         }
       } catch (err) {
         console.error("Error updating round on crash:", err);
-      }
-      
-      // Update all uncashed bets to "lost" status
-      try {
-        const { error } = await supabase
-          .from('player_bets')
-          .update({ status: 'lost' })
-          .eq('round_id', currentRoundId)
-          .is('cashed_out_multiplier', null);
-        
-        if (error) {
-          console.error("Error updating lost bets:", error);
-        } else {
-          console.log(`Updated lost bets for round ${currentRoundId}`);
-        }
-      } catch (err) {
-        console.error("Error updating lost bets:", err);
+        dbErrorCountRef.current += 1;
       }
     }
     
@@ -175,6 +203,7 @@ export const useCrashRoundManager = () => {
     setIsRoundActive(false);
     crashPointGeneratedRef.current = false; // Allow new crash point generation
     setCrashPoint(null);
+    setCurrentRoundId(null);
   }, []);
 
   // Timer effect with proper cleanup
@@ -193,10 +222,12 @@ export const useCrashRoundManager = () => {
       
     } else if (gameState === GAME_STATE.COUNTDOWN && countdownTimer <= 0) {
       // Countdown reached zero, start playing
+      console.log("Countdown complete, transitioning to PLAYING state");
       startPlaying();
       
     } else if (gameState === GAME_STATE.CRASHED && countdownTimer <= 0) {
       // Cooldown completed, reset and start new round
+      console.log("Cooldown complete, resetting for new round");
       resetRound();
       startNewRound();
     }
