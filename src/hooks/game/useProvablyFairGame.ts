@@ -170,7 +170,7 @@ export const useProvablyFairGame = () => {
           .then(() => {
             console.log(`Updated round ${roundId} status to running`);
           })
-          .catch(err => {
+          .catch((err) => {
             console.error('Error updating round status:', err);
           });
       }
@@ -221,7 +221,7 @@ export const useProvablyFairGame = () => {
             console.log(`Updated round ${roundId} status to completed`);
             fetchGameHistory();
           })
-          .catch(err => {
+          .catch((err) => {
             console.error('Error updating round status:', err);
           });
       }
@@ -347,7 +347,13 @@ export const useProvablyFairGame = () => {
         await supabase
           .from('profiles')
           .update({ balance: profileData.balance })
-          .eq('id', userId);
+          .eq('id', userId)
+          .then(() => {
+            console.log('Rolled back balance change due to bet insertion failure');
+          })
+          .catch((rollbackErr) => {
+            console.error('Failed to rollback balance change:', rollbackErr);
+          });
           
         throw new Error("Failed to place bet");
       }
