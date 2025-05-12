@@ -19,6 +19,7 @@ export const useCrashRoundManager = () => {
   const crashPointGeneratedRef = useRef<boolean>(false);
   const roundInProgressRef = useRef<boolean>(false);
   const dbErrorCountRef = useRef<number>(0); // Track DB errors to avoid excessive error messages
+  const gameFlowBlockedRef = useRef<boolean>(false); // Track if game flow is blocked
 
   // Generate a crash point between 1.01 and 10
   const generateCrashPoint = useCallback((): number => {
@@ -51,6 +52,7 @@ export const useCrashRoundManager = () => {
       }
       
       // Create round in database with PENDING status
+      let roundId = null;
       try {
         const { data: roundData, error: roundError } = await supabase
           .from('rounds')
@@ -66,7 +68,7 @@ export const useCrashRoundManager = () => {
         }
         
         // Update state with new round ID
-        setCurrentRoundId(roundData.id);
+        roundId = roundData.id;
         console.log(`New round created with ID ${roundData.id}, starting ${COUNTDOWN_TIME}s countdown`);
       } catch (dbErr) {
         // If database operation fails, continue with a fallback local ID
@@ -74,9 +76,8 @@ export const useCrashRoundManager = () => {
         dbErrorCountRef.current += 1;
         
         // Generate a fallback local round ID to keep game state consistent
-        const fallbackId = `local-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-        setCurrentRoundId(fallbackId);
-        console.log(`Using fallback round ID: ${fallbackId}`);
+        roundId = `local-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+        console.log(`Using fallback round ID: ${roundId}`);
         
         // Only show toast on first few errors to avoid spamming
         if (dbErrorCountRef.current <= 2) {
@@ -84,10 +85,14 @@ export const useCrashRoundManager = () => {
         }
       }
       
+      // Always update the local state to ensure game progresses
+      setCurrentRoundId(roundId);
+      
       // Start countdown for betting phase - do this regardless of DB success
       setGameState(GAME_STATE.COUNTDOWN);
       setCountdownTimer(COUNTDOWN_TIME);
       setIsRoundActive(false);
+      gameFlowBlockedRef.current = false; // Reset the flow blocked flag
       
     } catch (err) {
       console.error("Error in startNewRound:", err);
@@ -108,10 +113,13 @@ export const useCrashRoundManager = () => {
   const startPlaying = useCallback(async () => {
     console.log("Starting playing phase");
     
-    // CRITICAL: Update local game state immediately to keep game flowing
+    // CRITICAL: Update local game state IMMEDIATELY to keep game flowing
     // regardless of database status
     setGameState(GAME_STATE.PLAYING);
     setIsRoundActive(true);
+    
+    // Reset game flow blocked flag as we're now in playing state
+    gameFlowBlockedRef.current = false;
     
     // Then try to update the database, but don't block the game on this
     if (currentRoundId) {
@@ -204,6 +212,7 @@ export const useCrashRoundManager = () => {
     crashPointGeneratedRef.current = false; // Allow new crash point generation
     setCrashPoint(null);
     setCurrentRoundId(null);
+    gameFlowBlockedRef.current = false; // Reset the flow blocked flag
   }, []);
 
   // Timer effect with proper cleanup
@@ -232,6 +241,12 @@ export const useCrashRoundManager = () => {
       startNewRound();
     }
     
+    // Emergency recovery: If we're stuck in countdown for too long (15+ seconds)
+    if (gameState === GAME_STATE.COUNTDOWN && countdownTimer <= -5) {
+      console.error("EMERGENCY: Game stuck in countdown state. Forcing transition to PLAYING");
+      startPlaying(); // Force transition to playing state
+    }
+    
     return () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
@@ -253,6 +268,55 @@ export const useCrashRoundManager = () => {
       }
     };
   }, [gameState, currentRoundId, startNewRound]);
+
+  // Emergency recovery for stuck game states
+  useEffect(() => {
+    // Check every 5 seconds if the game is stuck
+    const emergencyCheck = setInterval(() => {
+      if (gameFlowBlockedRef.current) {
+        console.error("EMERGENCY: Game flow blocked for too long. Attempting recovery.");
+        
+        // Force transition based on current state
+        if (gameState === GAME_STATE.COUNTDOWN) {
+          console.log("Forcing transition from COUNTDOWN to PLAYING");
+          setGameState(GAME_STATE.PLAYING);
+          setIsRoundActive(true);
+        } else if (gameState === GAME_STATE.PLAYING && !isRoundActive) {
+          console.log("Inconsistent state: PLAYING but not active. Forcing active.");
+          setIsRoundActive(true);
+        } else if (gameState === GAME_STATE.CRASHED) {
+          console.log("Forcing new round after crash");
+          resetRound();
+          setTimeout(() => startNewRound(), 500);
+        }
+        
+        // Reset the blocked flag
+        gameFlowBlockedRef.current = false;
+      }
+    }, 5000);
+    
+    return () => clearInterval(emergencyCheck);
+  }, [gameState, isRoundActive, resetRound, startNewRound]);
+  
+  // If any critical state transition is taking longer than expected, mark game flow as blocked
+  useEffect(() => {
+    // Monitor state transitions
+    const stateTransitionTimeout = setTimeout(() => {
+      // If we're in countdown but timer is done, and we haven't transitioned to playing
+      if (gameState === GAME_STATE.COUNTDOWN && countdownTimer <= 0) {
+        console.warn("Countdown complete but game hasn't transitioned to PLAYING state");
+        gameFlowBlockedRef.current = true;
+      }
+      
+      // If we're crashed and timer is done, but haven't reset
+      if (gameState === GAME_STATE.CRASHED && countdownTimer <= 0) {
+        console.warn("Crash cooldown complete but game hasn't reset");
+        gameFlowBlockedRef.current = true;
+      }
+    }, 2000); // Check 2 seconds after expected transition
+    
+    return () => clearTimeout(stateTransitionTimeout);
+  }, [gameState, countdownTimer]);
 
   return {
     gameState,

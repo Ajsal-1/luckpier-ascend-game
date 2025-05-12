@@ -68,6 +68,8 @@ export const useCrashGameEngine = () => {
   // Reference to track if a round update is in progress
   const isUpdatingRoundRef = useRef<boolean>(false);
   const resetFailedRef = useRef<boolean>(false);
+  const gameStateTransitionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastGameStateRef = useRef<GAME_STATE>(gameState);
   
   // Handle round crashes with history updates
   const handleGameCrash = useCallback((multiplier: number) => {
@@ -134,6 +136,20 @@ export const useCrashGameEngine = () => {
     }
   }, [gameState, resetPlayers]);
   
+  // Detect game state transition and clear any stuck timers
+  useEffect(() => {
+    if (gameState !== lastGameStateRef.current) {
+      console.log(`Game state transition: ${lastGameStateRef.current} -> ${gameState}`);
+      lastGameStateRef.current = gameState;
+      
+      // Clear any pending timers on state transition
+      if (gameStateTransitionTimerRef.current) {
+        clearTimeout(gameStateTransitionTimerRef.current);
+        gameStateTransitionTimerRef.current = null;
+      }
+    }
+  }, [gameState]);
+  
   // Ensure game doesn't get stuck - emergency reset if state is inconsistent
   useEffect(() => {
     // If we have a bet placed but game is in WAITING or COUNTDOWN state for too long
@@ -150,11 +166,55 @@ export const useCrashGameEngine = () => {
         setIsBetPlaced(false);
         setBetError(null);
       }
-    }, 15000); // Check after 15 seconds of potential stuck state
+      
+      // Also check for stuck PLAYING state without an active bet
+      if (gameState === GAME_STATE.PLAYING && !isBetPlaced && !isProcessingBet && !isProcessingCashout) {
+        // This is a weird state - the game is playing but the user doesn't have an active bet
+        console.log("WARNING: Game is in PLAYING state but user doesn't have an active bet");
+      }
+      
+      // If the game is in CRASHED state for too long, force reset
+      if (gameState === GAME_STATE.CRASHED && countdownTimer !== null && countdownTimer < -5) {
+        console.log("EMERGENCY RESET: Game stuck in CRASHED state, forcing reset");
+        resetRound();
+      }
+      
+    }, 10000); // Shortened to 10 seconds for faster detection
     
     return () => clearTimeout(emergencyResetTimer);
   }, [countdownTimer, gameState, isBetPlaced, isProcessingBet, isProcessingCashout, 
-      setBetError, setIsBetPlaced, setPlayerAutoCashout, setPlayerBet, setPlayerWin]);
+      setBetError, setIsBetPlaced, setPlayerAutoCashout, setPlayerBet, setPlayerWin, resetRound]);
+  
+  // Additional emergency reset for edge cases - completely reset game flow if needed
+  useEffect(() => {
+    const completeGameStateCheckTimer = setTimeout(() => {
+      // If we're in a weird combination of states, try to force a complete reset
+      if ((gameState === GAME_STATE.PLAYING && !isRoundActive) || 
+          (gameState === GAME_STATE.COUNTDOWN && countdownTimer && countdownTimer < -2)) {
+            
+        console.log("CRITICAL GAME STATE INCONSISTENCY DETECTED - FORCING FULL RESET");
+        
+        // Reset player bet state
+        setPlayerBet(null);
+        setPlayerAutoCashout(null);
+        setPlayerWin(null);
+        setIsBetPlaced(false);
+        setBetError(null);
+        
+        // Reset game state
+        resetRound();
+        
+        // Force start a new round after a small delay
+        setTimeout(() => {
+          console.log("Forcing start of new round after emergency reset");
+          startNewRound();
+        }, 1000);
+      }
+    }, 15000); // Check every 15 seconds
+    
+    return () => clearTimeout(completeGameStateCheckTimer);
+  }, [gameState, countdownTimer, isRoundActive, setBetError, setIsBetPlaced, 
+      setPlayerAutoCashout, setPlayerBet, setPlayerWin, resetRound, startNewRound]);
   
   return {
     // Game state

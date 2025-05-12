@@ -1,5 +1,5 @@
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { GAME_STATE } from './types';
@@ -24,6 +24,11 @@ export const useBetManager = ({
   const [isProcessingCashout, setIsProcessingCashout] = useState<boolean>(false);
   const [betError, setBetError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  
+  // Track operations to prevent double-processing
+  const isPlacingBetRef = useRef<boolean>(false);
+  const isCashingOutRef = useRef<boolean>(false);
+  const processingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Check authentication status on mount
   useEffect(() => {
@@ -71,6 +76,12 @@ export const useBetManager = ({
     console.log(`Attempting to place bet: $${amount}, auto-cashout: ${autoCashout || 'none'}`);
     setBetError(null);
     
+    // Prevent double-processing
+    if (isPlacingBetRef.current) {
+      console.log("Bet placement already in progress, ignoring duplicate request");
+      return false;
+    }
+    
     // Validation checks
     if (!isAuthenticated) {
       toast.error("Please sign in to place bets", { position: 'top-center' });
@@ -108,6 +119,7 @@ export const useBetManager = ({
       return false;
     }
     
+    isPlacingBetRef.current = true;
     setIsProcessingBet(true);
     
     try {
@@ -127,6 +139,13 @@ export const useBetManager = ({
       setPlayerAutoCashout(autoCashout);
       setIsBetPlaced(true);
       setPlayerWin(null);
+      
+      // Set a timeout to clear the processing state in case the database operations take too long
+      processingTimeoutRef.current = setTimeout(() => {
+        console.log("Bet placement database operations timeout - ensuring UI is updated");
+        setIsProcessingBet(false);
+        isPlacingBetRef.current = false;
+      }, 5000);
       
       // Now try database operations, but don't block UI on them
       try {
@@ -171,6 +190,12 @@ export const useBetManager = ({
       } catch (dbErr) {
         // Log but don't block the game flow
         console.error("Database operations failed, continuing with local state:", dbErr);
+      } finally {
+        // Clear the processing timeout if we finished quickly
+        if (processingTimeoutRef.current) {
+          clearTimeout(processingTimeoutRef.current);
+          processingTimeoutRef.current = null;
+        }
       }
       
       toast.success(`Bet placed: $${amount.toFixed(2)}`, { position: 'top-center' });
@@ -188,12 +213,19 @@ export const useBetManager = ({
       return false;
     } finally {
       setIsProcessingBet(false);
+      isPlacingBetRef.current = false;
     }
   }, [currentRoundId, gameState, isAuthenticated, isBetPlaced, userBalance]);
 
   // Cashout function
   const handleCashout = useCallback(async () => {
     console.log(`Attempting to cash out at ${currentMultiplier.toFixed(2)}x`);
+    
+    // Prevent double-processing
+    if (isCashingOutRef.current) {
+      console.log("Cashout already in progress, ignoring duplicate request");
+      return false;
+    }
     
     // Validation checks
     if (!isAuthenticated) {
@@ -221,6 +253,7 @@ export const useBetManager = ({
       return false;
     }
     
+    isCashingOutRef.current = true;
     setIsProcessingCashout(true);
     
     try {
@@ -239,6 +272,13 @@ export const useBetManager = ({
         `Cashed out at ${currentMultiplier.toFixed(2)}x! Won $${profit.toFixed(2)}`, 
         { position: 'top-center' }
       );
+      
+      // Set a timeout to clear processing state in case database operations fail
+      processingTimeoutRef.current = setTimeout(() => {
+        console.log("Cashout database operations timeout - ensuring UI is updated");
+        setIsProcessingCashout(false);
+        isCashingOutRef.current = false;
+      }, 5000);
       
       // Now try database operations, but don't block UI
       try {
@@ -287,6 +327,12 @@ export const useBetManager = ({
       } catch (dbErr) {
         // Log but don't block UI
         console.error("Database operations failed, continuing with local state:", dbErr);
+      } finally {
+        // Clear the processing timeout if we finished quickly
+        if (processingTimeoutRef.current) {
+          clearTimeout(processingTimeoutRef.current);
+          processingTimeoutRef.current = null;
+        }
       }
       
       return true;
@@ -296,6 +342,7 @@ export const useBetManager = ({
       return false;
     } finally {
       setIsProcessingCashout(false);
+      isCashingOutRef.current = false;
     }
   }, [currentMultiplier, currentRoundId, gameState, isAuthenticated, isBetPlaced, playerBet, playerWin, userBalance]);
 
@@ -310,6 +357,16 @@ export const useBetManager = ({
       handleCashout();
     }
   }, [gameState, isBetPlaced, playerAutoCashout, playerWin, currentMultiplier, handleCashout]);
+  
+  // Clear any pending timeouts when component unmounts
+  useEffect(() => {
+    return () => {
+      if (processingTimeoutRef.current) {
+        clearTimeout(processingTimeoutRef.current);
+        processingTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   return {
     userBalance,

@@ -1,14 +1,16 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCrashGameEngine } from '@/hooks/useCrashGameEngine';
 import BettingPanel from '@/components/game/betting/BettingPanel';
 import GameHistory from '@/components/game/GameHistory';
 import LeaderBoard from '@/components/game/LeaderBoard';
 import SimpleMultiplier from '@/components/game/SimpleMultiplier';
 import AuthModal from '@/components/auth/AuthModal';
+import { toast } from 'sonner';
 
 const CrashGame: React.FC = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [lastGameState, setLastGameState] = useState<string | null>(null);
   
   const {
     gameState,
@@ -29,13 +31,31 @@ const CrashGame: React.FC = () => {
     handleCashout,
   } = useCrashGameEngine();
 
+  // Monitor game state changes for debugging
+  useEffect(() => {
+    if (lastGameState !== gameState) {
+      console.log(`Game state changed from ${lastGameState || 'initial'} to ${gameState}`);
+      setLastGameState(gameState);
+    }
+  }, [gameState, lastGameState]);
+  
+  // Monitor player bet/win state changes for debugging
+  useEffect(() => {
+    console.log(`Bet state: ${isBetPlaced ? 'PLACED' : 'NOT PLACED'}, Win state: ${playerWin !== null ? `WON at ${playerWin}x` : 'NO WIN'}`);
+  }, [isBetPlaced, playerWin]);
+
   const onPlaceBet = async (amount: number, autoCashout?: number | null) => {
     if (!isAuthenticated) {
       setIsAuthModalOpen(true);
       return;
     }
     
-    await handlePlaceBet(amount, autoCashout);
+    try {
+      await handlePlaceBet(amount, autoCashout);
+    } catch (err) {
+      console.error("Error in place bet handler:", err);
+      toast.error("Failed to place bet. Please try again.", { position: 'top-center' });
+    }
   };
 
   const onCashout = async () => {
@@ -44,7 +64,12 @@ const CrashGame: React.FC = () => {
       return;
     }
     
-    await handleCashout();
+    try {
+      await handleCashout();
+    } catch (err) {
+      console.error("Error in cashout handler:", err);
+      toast.error("Failed to cash out. Please try again.", { position: 'top-center' });
+    }
   };
 
   return (
