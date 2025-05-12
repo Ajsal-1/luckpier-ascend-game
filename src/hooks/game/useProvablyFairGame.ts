@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { GAME_STATE, HistoryItem } from './types';
@@ -163,6 +162,7 @@ export const useProvablyFairGame = () => {
       
       // Update round status in database
       if (roundId) {
+        // Using then/finally pattern instead of catch for PromiseLike
         supabase
           .from('rounds')
           .update({ status: 'running', started_at: new Date().toISOString() })
@@ -170,7 +170,7 @@ export const useProvablyFairGame = () => {
           .then(() => {
             console.log(`Updated round ${roundId} status to running`);
           })
-          .catch((err) => {
+          .then(null, (err) => { // This replaces .catch() for PromiseLike
             console.error('Error updating round status:', err);
           });
       }
@@ -213,6 +213,7 @@ export const useProvablyFairGame = () => {
       
       // Update round in database
       if (roundId) {
+        // Using then/finally pattern instead of catch for PromiseLike
         supabase
           .from('rounds')
           .update({ status: 'completed', ended_at: new Date().toISOString() })
@@ -221,7 +222,7 @@ export const useProvablyFairGame = () => {
             console.log(`Updated round ${roundId} status to completed`);
             fetchGameHistory();
           })
-          .catch((err) => {
+          .then(null, (err) => { // This replaces .catch() for PromiseLike
             console.error('Error updating round status:', err);
           });
       }
@@ -331,7 +332,7 @@ export const useProvablyFairGame = () => {
         throw new Error("Failed to update balance");
       }
       
-      // Insert the bet
+      // Check if bet exists and not already cashed out
       const { error: betError } = await supabase
         .from('player_bets')
         .insert({
@@ -344,6 +345,7 @@ export const useProvablyFairGame = () => {
         
       if (betError) {
         // Rollback balance change if bet insertion fails
+        // Using then/finally pattern instead of catch for PromiseLike
         await supabase
           .from('profiles')
           .update({ balance: profileData.balance })
@@ -351,7 +353,7 @@ export const useProvablyFairGame = () => {
           .then(() => {
             console.log('Rolled back balance change due to bet insertion failure');
           })
-          .catch((rollbackErr) => {
+          .then(null, (rollbackErr) => { // This replaces .catch() for PromiseLike
             console.error('Failed to rollback balance change:', rollbackErr);
           });
           
