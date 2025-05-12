@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -54,6 +53,8 @@ export const useBetManager = ({
     
     // Listen for auth changes
     const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+      // Fix: Removed the second argument since onAuthStateChange is expected
+      // to have 0-1 arguments according to the error
       setIsAuthenticated(event !== 'SIGNED_OUT');
       checkAuth();
     });
