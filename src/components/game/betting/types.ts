@@ -1,4 +1,3 @@
-
 export interface BettingPanelProps {
   isPlaying: boolean;
   isCrashed: boolean;
@@ -12,4 +11,12 @@ export interface BettingPanelProps {
   isProcessingBet?: boolean;
   isProcessingCashout?: boolean;
   betError?: string | null;
+}
+
+// Add new type for client-side bet processing
+export interface ClientBetResult {
+  success: boolean;
+  error?: string;
+  betAmount?: number;
+  autoCashout?: number | null;
 }
