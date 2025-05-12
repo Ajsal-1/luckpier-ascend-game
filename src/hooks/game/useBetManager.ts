@@ -52,10 +52,13 @@ export const useBetManager = ({
     
     checkAuth();
     
-    // Listen for auth changes
-    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+    // Listen for auth changes - Fix the TypeScript error by providing the correct function signature
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       setIsAuthenticated(event !== 'SIGNED_OUT');
-      checkAuth();
+      // Don't call checkAuth directly in the callback to avoid potential deadlocks
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        setTimeout(checkAuth, 0); // Schedule checkAuth to run after the current event loop
+      }
     });
     
     return () => {
