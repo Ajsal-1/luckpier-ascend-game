@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+
+import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { GAME_STATE } from './types';
@@ -25,7 +26,7 @@ export const useBetManager = ({
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
   // Check authentication status on mount
-  useState(() => {
+  useEffect(() => {
     const checkAuth = async () => {
       const { data } = await supabase.auth.getSession();
       setIsAuthenticated(!!data.session);
@@ -52,7 +53,7 @@ export const useBetManager = ({
     checkAuth();
     
     // Listen for auth changes
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
       setIsAuthenticated(event !== 'SIGNED_OUT');
       checkAuth();
     });
