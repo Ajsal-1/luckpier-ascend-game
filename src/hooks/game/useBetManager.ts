@@ -52,9 +52,7 @@ export const useBetManager = ({
     checkAuth();
     
     // Listen for auth changes
-    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
-      // Fix: Removed the second argument since onAuthStateChange is expected
-      // to have 0-1 arguments according to the error
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       setIsAuthenticated(event !== 'SIGNED_OUT');
       checkAuth();
     });
