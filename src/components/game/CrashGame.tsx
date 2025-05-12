@@ -1,12 +1,11 @@
 
-import React from 'react';
-import { useProvablyFairGame } from '@/hooks/game/useProvablyFairGame';
+import React, { useState } from 'react';
+import { useCrashGameEngine } from '@/hooks/useCrashGameEngine';
 import BettingPanel from '@/components/game/betting/BettingPanel';
 import GameHistory from '@/components/game/GameHistory';
 import LeaderBoard from '@/components/game/LeaderBoard';
 import SimpleMultiplier from '@/components/game/SimpleMultiplier';
 import AuthModal from '@/components/auth/AuthModal';
-import { useState } from 'react';
 
 const CrashGame: React.FC = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
@@ -28,7 +27,7 @@ const CrashGame: React.FC = () => {
     betError,
     handlePlaceBet,
     handleCashout,
-  } = useProvablyFairGame();
+  } = useCrashGameEngine();
 
   const onPlaceBet = async (amount: number, autoCashout?: number | null) => {
     if (!isAuthenticated) {
@@ -36,7 +35,7 @@ const CrashGame: React.FC = () => {
       return;
     }
     
-    handlePlaceBet(amount, autoCashout);
+    await handlePlaceBet(amount, autoCashout);
   };
 
   const onCashout = async () => {
@@ -45,7 +44,7 @@ const CrashGame: React.FC = () => {
       return;
     }
     
-    handleCashout();
+    await handleCashout();
   };
 
   return (
