@@ -1,11 +1,10 @@
 
-import React, { useEffect, useState } from 'react';
-import { cn } from '@/lib/utils';
+import React from 'react';
 import { GAME_STATE } from '@/hooks/game/types';
 
 interface SimpleMultiplierProps {
   currentMultiplier: number;
-  gameState: GAME_STATE;
+  gameState: string;
   crashPoint: number | null;
   remainingTime: number | null;
 }
@@ -14,54 +13,49 @@ const SimpleMultiplier: React.FC<SimpleMultiplierProps> = ({
   currentMultiplier,
   gameState,
   crashPoint,
-  remainingTime,
+  remainingTime
 }) => {
-  const [displayValue, setDisplayValue] = useState<string>("1.00x");
+  // Format multiplier with 2 decimal places
+  const formatMultiplier = (value: number): string => {
+    return value.toFixed(2) + 'x';
+  };
   
-  // Update display value when multiplier changes
-  useEffect(() => {
-    if (gameState === GAME_STATE.PLAYING) {
-      setDisplayValue(currentMultiplier.toFixed(2) + "x");
-    } else if (gameState === GAME_STATE.CRASHED && crashPoint !== null) {
-      setDisplayValue(crashPoint.toFixed(2) + "x");
-    } else if (gameState === GAME_STATE.COUNTDOWN) {
-      setDisplayValue("1.00x");
+  // Determine what to display based on game state
+  const getDisplayText = () => {
+    if (gameState === GAME_STATE.COUNTDOWN) {
+      return `Starting in ${remainingTime?.toFixed(1) || '0.0'}s`;
+    } else if (gameState === GAME_STATE.PLAYING) {
+      return formatMultiplier(currentMultiplier);
+    } else if (gameState === GAME_STATE.CRASHED && crashPoint) {
+      return `CRASHED AT ${formatMultiplier(crashPoint)}`;
+    } else {
+      return 'WAITING';
     }
-  }, [currentMultiplier, gameState, crashPoint]);
+  };
+  
+  // Determine text color based on game state
+  const getTextColorClass = () => {
+    if (gameState === GAME_STATE.PLAYING) {
+      return 'text-green-500';
+    } else if (gameState === GAME_STATE.CRASHED) {
+      return 'text-red-500';
+    } else {
+      return 'text-blue-400';
+    }
+  };
   
   return (
     <div className="flex flex-col items-center justify-center w-full h-full">
-      {/* Display countdown timer during countdown */}
-      {gameState === GAME_STATE.COUNTDOWN && remainingTime !== null && (
-        <div className="mb-4 text-3xl font-medium text-blue-400">
-          Starting in {remainingTime.toFixed(1)}s
-        </div>
-      )}
-      
-      {/* Large multiplier display */}
-      <div 
-        className={cn(
-          "text-7xl sm:text-8xl md:text-9xl font-bold",
-          gameState === GAME_STATE.PLAYING ? "text-white" : "",
-          gameState === GAME_STATE.CRASHED ? "text-red-500" : "",
-          gameState === GAME_STATE.COUNTDOWN ? "text-gray-400" : "",
-        )}
-      >
-        {displayValue}
+      <div className={`text-4xl md:text-5xl lg:text-6xl font-bold ${getTextColorClass()}`}>
+        {getDisplayText()}
       </div>
       
-      {/* Crash message */}
-      {gameState === GAME_STATE.CRASHED && crashPoint !== null && (
-        <div className="mt-4 text-2xl sm:text-3xl font-bold text-red-500">
-          CRASHED AT {crashPoint.toFixed(2)}x
-        </div>
+      {gameState === GAME_STATE.COUNTDOWN && (
+        <p className="text-gray-400 mt-2">Get ready to play!</p>
       )}
       
-      {/* Next round countdown */}
-      {gameState === GAME_STATE.CRASHED && remainingTime !== null && (
-        <div className="mt-4 text-xl font-medium text-amber-400">
-          Next round in {remainingTime.toFixed(1)}s
-        </div>
+      {gameState === GAME_STATE.CRASHED && (
+        <p className="text-gray-400 mt-2">Next round starting soon</p>
       )}
     </div>
   );

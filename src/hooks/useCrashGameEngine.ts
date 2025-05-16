@@ -1,4 +1,3 @@
-
 import { useEffect, useCallback, useRef } from 'react';
 import { useCrashRoundManager } from './game/useCrashRoundManager';
 import { useBetManager } from './game/useBetManager';
@@ -97,7 +96,7 @@ export const useCrashGameEngine = () => {
   
   // Handle auto-cashout
   useEffect(() => {
-    checkAutoCashout();
+    checkAutoCashout(currentMultiplier);
   }, [currentMultiplier, checkAutoCashout]);
   
   // Fetch players when round changes

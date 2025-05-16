@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -217,9 +216,12 @@ export const useBetManager = ({
     }
   }, [currentRoundId, gameState, isAuthenticated, isBetPlaced, userBalance]);
 
-  // Cashout function
-  const handleCashout = useCallback(async () => {
-    console.log(`Attempting to cash out at ${currentMultiplier.toFixed(2)}x`);
+  // Cashout function - Modified to accept a specific multiplier parameter
+  const handleCashout = useCallback(async (cashoutMultiplier?: number) => {
+    // Use the passed multiplier or current multiplier from props
+    const actualMultiplier = cashoutMultiplier || currentMultiplier;
+    
+    console.log(`Attempting to cash out at ${actualMultiplier.toFixed(2)}x`);
     
     // Prevent double-processing
     if (isCashingOutRef.current) {
@@ -258,18 +260,18 @@ export const useBetManager = ({
     
     try {
       // CRITICAL: Update local state IMMEDIATELY to provide instant feedback
-      // Calculate winnings
-      const winnings = playerBet * currentMultiplier;
+      // Calculate winnings with the correct multiplier
+      const winnings = playerBet * actualMultiplier;
       const newBalance = userBalance + winnings;
       
       // Update local state right away
       setUserBalance(newBalance);
-      setPlayerWin(currentMultiplier);
+      setPlayerWin(actualMultiplier);
       
-      // Show success message
+      // Show success message with correct values
       const profit = winnings - playerBet;
       toast.success(
-        `Cashed out at ${currentMultiplier.toFixed(2)}x! Won $${profit.toFixed(2)}`, 
+        `Cashed out at ${actualMultiplier.toFixed(2)}x! Won $${profit.toFixed(2)}`, 
         { position: 'top-center' }
       );
       
@@ -294,7 +296,7 @@ export const useBetManager = ({
         const { error: updateError } = await supabase
           .from('player_bets')
           .update({
-            cashed_out_multiplier: currentMultiplier,
+            cashed_out_multiplier: actualMultiplier,
             status: 'won'
           })
           .eq('round_id', currentRoundId)
@@ -346,17 +348,17 @@ export const useBetManager = ({
     }
   }, [currentMultiplier, currentRoundId, gameState, isAuthenticated, isBetPlaced, playerBet, playerWin, userBalance]);
 
-  // Auto-cashout logic
-  const checkAutoCashout = useCallback(() => {
+  // Auto-cashout logic - Modified to accept multiplier
+  const checkAutoCashout = useCallback((currentMultiplier: number) => {
     if (gameState === GAME_STATE.PLAYING && 
         isBetPlaced && 
         playerAutoCashout !== null && 
         playerWin === null &&
         currentMultiplier >= playerAutoCashout) {
-      console.log(`Auto-cashout triggered at ${currentMultiplier.toFixed(2)}x`);
-      handleCashout();
+      console.log(`Auto-cashout triggered at ${currentMultiplier.toFixed(2)}x (target: ${playerAutoCashout}x)`);
+      handleCashout(currentMultiplier);
     }
-  }, [gameState, isBetPlaced, playerAutoCashout, playerWin, currentMultiplier, handleCashout]);
+  }, [gameState, isBetPlaced, playerAutoCashout, playerWin, handleCashout]);
   
   // Clear any pending timeouts when component unmounts
   useEffect(() => {
