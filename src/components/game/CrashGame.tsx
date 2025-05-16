@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useCrashGameEngine } from '@/hooks/useCrashGameEngine';
 import BettingPanel from '@/components/game/betting/BettingPanel';
-import GameHistory from '@/components/game/GameHistory';
+import GameStatistics from '@/components/game/GameStatistics';
 import LeaderBoard from '@/components/game/LeaderBoard';
 import SimpleMultiplier from '@/components/game/SimpleMultiplier';
 import AuthModal from '@/components/auth/AuthModal';
@@ -77,9 +77,9 @@ const CrashGame: React.FC = () => {
     <div className="w-full">
       {/* Game area with multiplier, betting panel and leaderboard */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Game History */}
+        {/* Game Statistics - Replaced GameHistory */}
         <div className="lg:col-span-12 mb-2">
-          <GameHistory history={gameHistory} />
+          <GameStatistics lastUpdate={new Date()} />
         </div>
         
         {/* Betting Panel (Left on desktop) */}
