@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useCrashGameEngine } from '@/hooks/useCrashGameEngine';
 import BettingPanel from '@/components/game/betting/BettingPanel';
@@ -77,9 +76,9 @@ const CrashGame: React.FC = () => {
     <div className="w-full">
       {/* Game area with multiplier, betting panel and leaderboard */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Game Statistics - Replaced GameHistory */}
+        {/* Game Statistics - Now uses the hook internally */}
         <div className="lg:col-span-12 mb-2">
-          <GameStatistics lastUpdate={new Date()} />
+          <GameStatistics />
         </div>
         
         {/* Betting Panel (Left on desktop) */}
