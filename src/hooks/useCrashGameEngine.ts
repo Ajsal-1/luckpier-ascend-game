@@ -1,4 +1,3 @@
-
 import { useEffect, useCallback, useRef } from 'react';
 import { useCrashRoundManager } from './game/useCrashRoundManager';
 import { useBetManager } from './game/useBetManager';
@@ -101,7 +100,7 @@ export const useCrashGameEngine = () => {
     if (gameState === GAME_STATE.PLAYING && isBetPlaced && playerAutoCashout !== null && 
         currentMultiplierValue >= playerAutoCashout && playerWin === null) {
       console.log(`Auto-cashout triggered at ${currentMultiplierValue.toFixed(2)}x (target: ${playerAutoCashout}x)`);
-      handleCashout(currentMultiplierValue);
+      handleCashout();
     }
   }, [gameState, isBetPlaced, playerAutoCashout, playerWin, handleCashout]);
   

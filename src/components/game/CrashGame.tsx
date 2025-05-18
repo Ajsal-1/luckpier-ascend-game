@@ -74,8 +74,8 @@ const CrashGame: React.FC = () => {
     }
     
     try {
-      // Pass the current multiplier to handleCashout to ensure the correct value is used
-      await handleCashout(currentMultiplier);
+      // Fixed: Remove the current multiplier argument from handleCashout
+      await handleCashout();
     } catch (err) {
       console.error("Error in cashout handler:", err);
       toast.error("Failed to cash out. Please try again.", { position: 'top-center' });
