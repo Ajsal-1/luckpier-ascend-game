@@ -16,13 +16,39 @@ const usernames = [
   'MetaMask', 'TokenTrade', 'StakeKing', 'CoinVault', 'CryptoCasino'
 ];
 
-// Generate a random amount ending with "00"
+// Generate a realistic betting amount based on different tiers
 const generateRealisticAmount = (): number => {
-  // Generate base amount between 1 and 100
-  const baseAmount = Math.floor(Math.random() * 100) + 1;
+  // Define different betting tiers with their probabilities
+  const tiers = [
+    { min: 10, max: 90, probability: 0.4 },    // Small bets: $1000-$9000
+    { min: 100, max: 490, probability: 0.3 },  // Medium bets: $10000-$49000
+    { min: 500, max: 990, probability: 0.2 },  // Large bets: $50000-$99000
+    { min: 1000, max: 5000, probability: 0.1 } // High roller bets: $100000-$500000
+  ];
   
-  // Multiply by 100 to get amounts ending in 00
-  return baseAmount * 100;
+  // Select a tier based on probability
+  let selectedTier = tiers[0];
+  const rand = Math.random();
+  let cumulativeProbability = 0;
+  
+  for (const tier of tiers) {
+    cumulativeProbability += tier.probability;
+    if (rand < cumulativeProbability) {
+      selectedTier = tier;
+      break;
+    }
+  }
+  
+  // Generate a base amount within the selected tier
+  const baseAmount = Math.floor(Math.random() * 
+    (selectedTier.max - selectedTier.min + 1)) + selectedTier.min;
+  
+  // Most amounts will end with 00, some with 50
+  const endingOptions = [0, 0, 0, 0, 5]; // 80% chance for 00, 20% chance for 50
+  const ending = endingOptions[Math.floor(Math.random() * endingOptions.length)];
+  
+  // Return the final amount (base * 10 + ending)
+  return baseAmount * 10 + ending * 10;
 };
 
 // Generate a player ID

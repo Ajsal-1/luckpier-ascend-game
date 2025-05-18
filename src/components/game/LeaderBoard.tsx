@@ -50,21 +50,39 @@ const LeaderBoard: React.FC<LeaderBoardProps> = ({ players }) => {
             {displayedPlayers.map((player) => {
               const profit = player.multiplier ? (player.amount * player.multiplier) - player.amount : 0;
               const isWaiting = player.multiplier === null;
+              const isLost = player.multiplier === 0;
               
               return (
                 <tr 
                   key={player.id} 
-                  className="hover:bg-gray-800/30 transition-colors text-sm"
+                  className={cn(
+                    "transition-all duration-300",
+                    isLost ? "opacity-60 hover:bg-gray-800/20" : "hover:bg-gray-800/30",
+                    player.id.startsWith('fake-') ? "animate-fade-in" : ""
+                  )}
                 >
                   <td className="max-w-[100px] truncate">
-                    <span className={player.name === "You" ? "font-medium text-white" : "text-gray-300"}>
+                    <span className={cn(
+                      player.name === "You" ? "font-medium text-white" : "text-gray-300",
+                      isLost && "text-gray-500"
+                    )}>
                       {player.name}
                     </span>
                   </td>
-                  <td className="text-right">${player.amount.toFixed(2)}</td>
+                  <td className={cn(
+                    "text-right",
+                    isLost && "text-gray-500"
+                  )}>
+                    ${player.amount.toFixed(2)}
+                  </td>
                   <td className="text-right">
                     {isWaiting ? (
-                      <span className="text-blue-400">Playing...</span>
+                      <span className="text-blue-400 inline-flex items-center">
+                        Playing
+                        <span className="animate-pulse">...</span>
+                      </span>
+                    ) : isLost ? (
+                      <span className="text-pink-500 font-medium">0.00x</span>
                     ) : (
                       <span 
                         className={cn(
@@ -79,6 +97,10 @@ const LeaderBoard: React.FC<LeaderBoardProps> = ({ players }) => {
                   <td className="text-right">
                     {isWaiting ? (
                       <span className="text-gray-500">-</span>
+                    ) : isLost ? (
+                      <span className="text-pink-500 font-medium">
+                        -{player.amount.toFixed(2)}
+                      </span>
                     ) : (
                       <span 
                         className={cn(
