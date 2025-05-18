@@ -125,6 +125,22 @@ export const useCrashGameEngine = () => {
         return () => clearTimeout(resetTimer);
       }
     }
+    
+    // Important fix: Reset player state when transitioning to WAITING state
+    // This ensures players who won (cashed out successfully) can bet again in the next round
+    if (gameState === GAME_STATE.WAITING) {
+      console.log("Game state is WAITING, resetting player state");
+      const resetTimer = setTimeout(() => {
+        setPlayerBet(null);
+        setPlayerAutoCashout(null);
+        setPlayerWin(null);
+        setIsBetPlaced(false);
+        setBetError(null);
+        resetFailedRef.current = false;
+      }, 500);
+      
+      return () => clearTimeout(resetTimer);
+    }
   }, [gameState, isBetPlaced, playerWin, setPlayerBet, setPlayerAutoCashout, setPlayerWin, setIsBetPlaced, setBetError]);
   
   // When round ends, reset players for next round

@@ -98,6 +98,14 @@ export const usePlayerActions = ({
     }
   }, [gameState, playerBet, currentMultiplier, setPlayers, playerWin]);
 
+  // Reset player state for next round - New method to properly reset state
+  const resetPlayerState = useCallback(() => {
+    setPlayerBet(null);
+    setPlayerAutoCashout(null);
+    setPlayerWin(null);
+    setIsBetPlaced(false);
+  }, []);
+
   return {
     userBalance,
     playerBet,
@@ -110,6 +118,7 @@ export const usePlayerActions = ({
     setPlayerAutoCashout,
     setPlayerWin,
     setIsBetPlaced,
-    setUserBalance, // Export this setter to fix the second error
+    setUserBalance,
+    resetPlayerState, // Export the new reset function
   };
 };
