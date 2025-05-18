@@ -10,7 +10,7 @@ const Index = () => {
       
       <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 mb-6">
         <p className="text-amber-400 text-sm font-medium">
-          HOW TO PLAY: Place your bet during the countdown. Once the round starts, cash out before it crashes to multiply your bet! Our top player has a streak of 26 consecutive wins!
+          HOW TO PLAY: Place your bet during the countdown. Once the round starts, cash out before it crashes to multiply your bet! Our top player has a streak of 63 consecutive wins!
         </p>
       </div>
       
