@@ -1,3 +1,4 @@
+
 import { useEffect, useCallback, useRef } from 'react';
 import { useCrashRoundManager } from './game/useCrashRoundManager';
 import { useBetManager } from './game/useBetManager';
@@ -93,6 +94,16 @@ export const useCrashGameEngine = () => {
       isUpdatingRoundRef.current = false;
     }
   }, [isBetPlaced, playerWin, updateGameHistory, setPlayerBet, setPlayerAutoCashout]);
+  
+  // Handle auto-cashout function
+  const checkAutoCashout = useCallback((currentMultiplierValue: number) => {
+    // If player has an auto-cashout set and we've reached or exceeded that value, cash out
+    if (gameState === GAME_STATE.PLAYING && isBetPlaced && playerAutoCashout !== null && 
+        currentMultiplierValue >= playerAutoCashout && playerWin === null) {
+      console.log(`Auto-cashout triggered at ${currentMultiplierValue.toFixed(2)}x (target: ${playerAutoCashout}x)`);
+      handleCashout(currentMultiplierValue);
+    }
+  }, [gameState, isBetPlaced, playerAutoCashout, playerWin, handleCashout]);
   
   // Handle auto-cashout
   useEffect(() => {

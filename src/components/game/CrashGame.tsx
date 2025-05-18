@@ -43,7 +43,7 @@ const CrashGame: React.FC = () => {
       // This ensures previously cashed out players can bet in the new round
       if (gameState === GAME_STATE.WAITING && lastGameState === GAME_STATE.CRASHED) {
         console.log("Explicitly resetting player state in CrashGame component");
-        resetPlayerState();
+        resetPlayerState(); // Fixed: Don't pass any arguments
       }
     }
   }, [gameState, lastGameState, resetPlayerState]);
