@@ -52,7 +52,8 @@ export const useCrashGameEngine = () => {
     fetchPlayers,
     updateGameHistory,
     resetPlayers,
-    setPlayers
+    setPlayers,
+    updateFakePlayers // Get the new function for updating fake players
   } = useGameHistoryManager();
   
   // Use the multiplier animation hook
@@ -183,6 +184,18 @@ export const useCrashGameEngine = () => {
     }
   }, [gameState]);
   
+  // Update fake players when multiplier changes during PLAYING state
+  useEffect(() => {
+    if (gameState === GAME_STATE.PLAYING && updateFakePlayers) {
+      // Throttle updates to avoid too many renders
+      const throttleUpdateInterval = setTimeout(() => {
+        updateFakePlayers(currentMultiplier, crashPoint);
+      }, 200); // Update every 200ms for better performance
+      
+      return () => clearTimeout(throttleUpdateInterval);
+    }
+  }, [gameState, currentMultiplier, crashPoint, updateFakePlayers]);
+  
   // Ensure game doesn't get stuck - emergency reset if state is inconsistent
   useEffect(() => {
     // If we have a bet placed but game is in WAITING or COUNTDOWN state for too long
@@ -277,6 +290,7 @@ export const useCrashGameEngine = () => {
     handleCashout,
     handleGameCrash,
     resetPlayerState, // Export reset function for use in other components
+    updateFakePlayers, // Export the fake player update function
     
     // Game control
     isRoundActive,

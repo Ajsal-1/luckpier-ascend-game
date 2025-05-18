@@ -13,6 +13,7 @@ import { GAME_STATE } from '@/hooks/game/types';
 const CrashGame: React.FC = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [lastGameState, setLastGameState] = useState<string | null>(null);
+  const [lastMultiplierUpdate, setLastMultiplierUpdate] = useState<number>(0);
   
   const {
     gameState,
@@ -58,6 +59,24 @@ const CrashGame: React.FC = () => {
       console.log(`Auto cashout set to ${playerAutoCashout}x`);
     }
   }, [isBetPlaced, playerWin, playerAutoCashout]);
+
+  // Update fake players based on current multiplier (throttled)
+  useEffect(() => {
+    // Only update during PLAYING state and throttle updates to avoid excessive renders
+    if (gameState === GAME_STATE.PLAYING) {
+      const now = Date.now();
+      
+      // Throttle updates to every 200ms to prevent performance issues
+      if (now - lastMultiplierUpdate > 200) {
+        // The updateFakePlayers function is now available in useCrashGameEngine
+        if ((useCrashGameEngine as any).updateFakePlayers) {
+          (useCrashGameEngine as any).updateFakePlayers(currentMultiplier, crashPoint);
+        }
+        
+        setLastMultiplierUpdate(now);
+      }
+    }
+  }, [currentMultiplier, crashPoint, gameState, lastMultiplierUpdate, useCrashGameEngine]);
 
   const onPlaceBet = async (amount: number, autoCashout?: number | null) => {
     if (!isAuthenticated) {

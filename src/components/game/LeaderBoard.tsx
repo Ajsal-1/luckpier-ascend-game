@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 
 interface Player {
@@ -14,6 +14,21 @@ interface LeaderBoardProps {
 }
 
 const LeaderBoard: React.FC<LeaderBoardProps> = ({ players }) => {
+  // Sort and limit players for better performance
+  const displayedPlayers = useMemo(() => {
+    // First, separate real players (represented by "You") and other players
+    const realPlayers = players.filter(p => p.name === "You");
+    const otherPlayers = players.filter(p => p.name !== "You");
+    
+    // Sort other players by bet amount (descending) and take top 50
+    const sortedOthers = otherPlayers
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 50);
+    
+    // Combine and return
+    return [...realPlayers, ...sortedOthers];
+  }, [players]);
+  
   return (
     <div className="bg-[#131c29] border border-gray-800/40 rounded-md h-full overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800/40">
@@ -32,7 +47,7 @@ const LeaderBoard: React.FC<LeaderBoardProps> = ({ players }) => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800/20">
-            {players.map((player) => {
+            {displayedPlayers.map((player) => {
               const profit = player.multiplier ? (player.amount * player.multiplier) - player.amount : 0;
               const isWaiting = player.multiplier === null;
               
@@ -79,7 +94,7 @@ const LeaderBoard: React.FC<LeaderBoardProps> = ({ players }) => {
               );
             })}
             
-            {players.length === 0 && (
+            {displayedPlayers.length === 0 && (
               <tr>
                 <td colSpan={4} className="py-4 text-center text-gray-500">
                   No active bets
@@ -89,6 +104,12 @@ const LeaderBoard: React.FC<LeaderBoardProps> = ({ players }) => {
           </tbody>
         </table>
       </div>
+      
+      {players.length > 50 && (
+        <div className="px-4 py-2 text-center text-xs text-gray-400 border-t border-gray-800/40">
+          Showing top 50 players of {players.length} total
+        </div>
+      )}
     </div>
   );
 };
