@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Wallet, Settings, TrendingUp } from 'lucide-react';
+import { Wallet, Settings, TrendingUp, DollarSign } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
@@ -68,9 +68,9 @@ export const Navbar = () => {
             <div className="flex items-center space-x-4">
               {isAuthenticated ? (
                 <>
-                  <div className="text-white bg-[#1c2533] px-4 py-1.5 rounded font-medium border border-gray-700/30 w-[120px] text-right">
-                    <span className="text-gray-400 mr-1">$</span>
-                    <span className="inline-block">
+                  <div className="flex items-center bg-gradient-to-r from-blue-900/40 to-indigo-900/40 px-3 py-1.5 rounded-lg font-medium border border-blue-500/20 shadow-sm overflow-hidden group hover:border-blue-400/30 transition-all">
+                    <DollarSign className="w-3.5 h-3.5 text-blue-300 mr-1 opacity-70 group-hover:opacity-100 transition-opacity" />
+                    <span className="text-blue-100 font-medium">
                       {wallet.balance.toFixed(2)}
                     </span>
                   </div>
