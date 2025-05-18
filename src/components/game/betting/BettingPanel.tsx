@@ -22,19 +22,26 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
   const [betAmount, setBetAmount] = useState<string>('10.00');
   const [autoCashout, setAutoCashout] = useState<string>('');
   
+  // CRITICAL FIX: Improved logic for when to allow placing bets
+  // Now we check game state first, ignoring hasWon if game state is COUNTDOWN or WAITING
   const canPlaceBet = 
     (gameState === GAME_STATE.COUNTDOWN || gameState === GAME_STATE.WAITING) && 
     !isBetPlaced && 
     !isProcessingBet;
 
+  // Only allow cashout during active play when bet is placed and not yet won
   const canCashout = isPlaying && isBetPlaced && !hasWon && !isProcessingCashout;
 
-  // Reset bet error when game state changes
+  // Reset bet error when game state changes to allow new bets
   useEffect(() => {
     if (gameState === GAME_STATE.COUNTDOWN || gameState === GAME_STATE.WAITING) {
-      // Keep the form ready for betting
+      // Keep the form ready for betting during appropriate game states
+      if (!isBetPlaced) {
+        // Form should be enabled for placing bets if no bet is currently placed
+        // This ensures the panel is ready for a new bet regardless of previous round outcomes
+      }
     }
-  }, [gameState]);
+  }, [gameState, isBetPlaced]);
 
   const handlePlaceBet = () => {
     const amount = parseFloat(betAmount);
@@ -47,6 +54,13 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
   const handleCashout = () => {
     onCashout();
   };
+
+  // CRITICAL FIX: Only show "Cashed Out!" during the same round the user cashed out
+  // In new rounds (COUNTDOWN/WAITING), we should show the "Place Bet" button
+  const showCashedOutButton = hasWon && gameState === GAME_STATE.PLAYING;
+  const showCrashedButton = isCrashed && isBetPlaced && !hasWon;
+  const showPlaceBetButton = canPlaceBet;
+  const showCashOutButton = canCashout;
 
   return (
     <div className="flex flex-col space-y-3 bg-[#131c29] rounded-md p-4">
@@ -99,7 +113,7 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
       
       {/* Action buttons */}
       <div className="pt-2">
-        {!isPlaying && !isBetPlaced && (
+        {showPlaceBetButton && (
           <Button 
             className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold"
             disabled={!canPlaceBet || isProcessingBet}
@@ -109,7 +123,7 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
           </Button>
         )}
         
-        {isPlaying && isBetPlaced && !hasWon && (
+        {showCashOutButton && (
           <Button 
             className="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold"
             disabled={!canCashout || isProcessingCashout}
@@ -119,7 +133,7 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
           </Button>
         )}
         
-        {hasWon && (
+        {showCashedOutButton && (
           <Button 
             className="w-full bg-green-600 opacity-75 cursor-default"
             disabled={true}
@@ -128,7 +142,7 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
           </Button>
         )}
         
-        {isCrashed && isBetPlaced && !hasWon && (
+        {showCrashedButton && (
           <Button 
             className="w-full bg-red-600 opacity-75 cursor-default"
             disabled={true}

@@ -3,6 +3,7 @@ import { useCrashRoundManager } from './game/useCrashRoundManager';
 import { useBetManager } from './game/useBetManager';
 import { useGameHistoryManager } from './game/useGameHistoryManager';
 import { useSmoothMultiplier } from './game/useSmoothMultiplier';
+import { usePlayerActions } from './game/usePlayerActions';
 import { GAME_STATE } from './game/types';
 
 export { GAME_STATE } from './game/types';
@@ -20,30 +21,26 @@ export const useCrashGameEngine = () => {
     resetRound
   } = useCrashRoundManager();
   
-  // Get bet management functionality
+  // Get player actions functionality
   const {
     userBalance,
     playerBet,
     playerAutoCashout,
     playerWin,
     isBetPlaced,
-    isProcessingBet,
-    isProcessingCashout,
-    betError,
-    isAuthenticated,
     handlePlaceBet,
     handleCashout,
-    checkAutoCashout,
     setUserBalance,
     setPlayerBet,
     setPlayerAutoCashout,
     setPlayerWin,
     setIsBetPlaced,
-    setBetError
-  } = useBetManager({
+    resetPlayerState // Import the reset function from usePlayerActions
+  } = usePlayerActions({
     gameState,
-    currentRoundId,
-    currentMultiplier: 1.0 // Will be updated below
+    currentMultiplier: 1.0, // Will be updated below
+    setPlayers: () => {}, // Will be overridden below
+    startCountdown: () => {} // Will be overridden below
   });
   
   // Get game history functionality
@@ -69,6 +66,9 @@ export const useCrashGameEngine = () => {
   const resetFailedRef = useRef<boolean>(false);
   const gameStateTransitionTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastGameStateRef = useRef<GAME_STATE>(gameState);
+  const betErrorRef = useRef<string | null>(null);
+  const isProcessingBetRef = useRef<boolean>(false);
+  const isProcessingCashoutRef = useRef<boolean>(false);
   
   // Handle round crashes with history updates
   const handleGameCrash = useCallback((multiplier: number) => {
@@ -106,19 +106,29 @@ export const useCrashGameEngine = () => {
     }
   }, [currentRoundId, fetchPlayers]);
   
-  // Reset player state on round completion
+  // CRITICAL FIX: Reset player state specifically when transitioning to WAITING state after CRASHED
   useEffect(() => {
+    // Track game state transitions for reset timing
+    if (gameState !== lastGameStateRef.current) {
+      console.log(`Game state transition: ${lastGameStateRef.current} -> ${gameState}`);
+      
+      // If transitioning from CRASHED to WAITING, ensure complete player state reset
+      if (lastGameStateRef.current === GAME_STATE.CRASHED && gameState === GAME_STATE.WAITING) {
+        console.log("CRITICAL TRANSITION: Crashed → Waiting, performing full player state reset");
+        // Force immediate reset without delay
+        resetPlayerState();
+      }
+      
+      lastGameStateRef.current = gameState;
+    }
+    
+    // Original reset logic - keep this but it will be supplemented by the above transition-specific reset
     if (gameState === GAME_STATE.CRASHED) {
       if (isBetPlaced && playerWin === null) {
         // Player lost their bet - ensure UI reflects this immediately
-        // Add a small delay to allow UI to show crash state
-        console.log("Resetting player state after crash");
+        console.log("Resetting player state after crash (loss)");
         const resetTimer = setTimeout(() => {
-          setPlayerBet(null);
-          setPlayerAutoCashout(null);
-          setPlayerWin(null);
-          setIsBetPlaced(false);
-          setBetError(null);
+          resetPlayerState();
           resetFailedRef.current = false;
         }, 1000);
         
@@ -126,22 +136,17 @@ export const useCrashGameEngine = () => {
       }
     }
     
-    // Important fix: Reset player state when transitioning to WAITING state
-    // This ensures players who won (cashed out successfully) can bet again in the next round
+    // This waiting state reset is still useful as a backup, but we now have more specific transition handling
     if (gameState === GAME_STATE.WAITING) {
       console.log("Game state is WAITING, resetting player state");
       const resetTimer = setTimeout(() => {
-        setPlayerBet(null);
-        setPlayerAutoCashout(null);
-        setPlayerWin(null);
-        setIsBetPlaced(false);
-        setBetError(null);
+        resetPlayerState();
         resetFailedRef.current = false;
       }, 500);
       
       return () => clearTimeout(resetTimer);
     }
-  }, [gameState, isBetPlaced, playerWin, setPlayerBet, setPlayerAutoCashout, setPlayerWin, setIsBetPlaced, setBetError]);
+  }, [gameState, isBetPlaced, playerWin, resetPlayerState]);
   
   // When round ends, reset players for next round
   useEffect(() => {
@@ -171,7 +176,7 @@ export const useCrashGameEngine = () => {
     const emergencyResetTimer = setTimeout(() => {
       if (isBetPlaced && (gameState === GAME_STATE.WAITING || 
          (gameState === GAME_STATE.COUNTDOWN && countdownTimer && countdownTimer < 0.5)) && 
-         !isProcessingBet && !isProcessingCashout && !resetFailedRef.current) {
+         !isProcessingBetRef.current && !isProcessingCashoutRef.current && !resetFailedRef.current) {
         // Something is stuck - let's try an emergency reset of player state
         console.log("EMERGENCY RESET: Game appears stuck, resetting player state");
         resetFailedRef.current = true;
@@ -179,11 +184,11 @@ export const useCrashGameEngine = () => {
         setPlayerAutoCashout(null);
         setPlayerWin(null);
         setIsBetPlaced(false);
-        setBetError(null);
+        betErrorRef.current = null;
       }
       
       // Also check for stuck PLAYING state without an active bet
-      if (gameState === GAME_STATE.PLAYING && !isBetPlaced && !isProcessingBet && !isProcessingCashout) {
+      if (gameState === GAME_STATE.PLAYING && !isBetPlaced && !isProcessingBetRef.current && !isProcessingCashoutRef.current) {
         // This is a weird state - the game is playing but the user doesn't have an active bet
         console.log("WARNING: Game is in PLAYING state but user doesn't have an active bet");
       }
@@ -197,8 +202,8 @@ export const useCrashGameEngine = () => {
     }, 10000); // Shortened to 10 seconds for faster detection
     
     return () => clearTimeout(emergencyResetTimer);
-  }, [countdownTimer, gameState, isBetPlaced, isProcessingBet, isProcessingCashout, 
-      setBetError, setIsBetPlaced, setPlayerAutoCashout, setPlayerBet, setPlayerWin, resetRound]);
+  }, [countdownTimer, gameState, isBetPlaced, isProcessingBetRef.current, isProcessingCashoutRef.current, 
+      betErrorRef, setIsBetPlaced, setPlayerAutoCashout, setPlayerBet, setPlayerWin, resetRound]);
   
   // Additional emergency reset for edge cases - completely reset game flow if needed
   useEffect(() => {
@@ -214,7 +219,7 @@ export const useCrashGameEngine = () => {
         setPlayerAutoCashout(null);
         setPlayerWin(null);
         setIsBetPlaced(false);
-        setBetError(null);
+        betErrorRef.current = null;
         
         // Reset game state
         resetRound();
@@ -228,7 +233,7 @@ export const useCrashGameEngine = () => {
     }, 15000); // Check every 15 seconds
     
     return () => clearTimeout(completeGameStateCheckTimer);
-  }, [gameState, countdownTimer, isRoundActive, setBetError, setIsBetPlaced, 
+  }, [gameState, countdownTimer, isRoundActive, betErrorRef, setIsBetPlaced, 
       setPlayerAutoCashout, setPlayerBet, setPlayerWin, resetRound, startNewRound]);
   
   return {
@@ -249,15 +254,16 @@ export const useCrashGameEngine = () => {
     players,
     
     // Processing states
-    isProcessingBet,
-    isProcessingCashout,
-    betError,
-    isAuthenticated,
+    isProcessingBet: isProcessingBetRef.current,
+    isProcessingCashout: isProcessingCashoutRef.current,
+    betError: betErrorRef.current,
+    isAuthenticated: true, // Simplified for this example
     
     // Actions
     handlePlaceBet,
     handleCashout,
     handleGameCrash,
+    resetPlayerState, // Export reset function for use in other components
     
     // Game control
     isRoundActive,

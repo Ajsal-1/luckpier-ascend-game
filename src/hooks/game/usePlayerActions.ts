@@ -98,8 +98,9 @@ export const usePlayerActions = ({
     }
   }, [gameState, playerBet, currentMultiplier, setPlayers, playerWin]);
 
-  // Reset player state for next round - New method to properly reset state
+  // Reset player state for next round - Improved implementation
   const resetPlayerState = useCallback(() => {
+    console.log("🔄 Complete player state reset triggered");
     setPlayerBet(null);
     setPlayerAutoCashout(null);
     setPlayerWin(null);
@@ -119,6 +120,6 @@ export const usePlayerActions = ({
     setPlayerWin,
     setIsBetPlaced,
     setUserBalance,
-    resetPlayerState, // Export the new reset function
+    resetPlayerState,
   };
 };

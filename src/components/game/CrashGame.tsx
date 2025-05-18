@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useCrashGameEngine } from '@/hooks/useCrashGameEngine';
 import BettingPanel from '@/components/game/betting/BettingPanel';
@@ -6,6 +7,7 @@ import LeaderBoard from '@/components/game/LeaderBoard';
 import SimpleMultiplier from '@/components/game/SimpleMultiplier';
 import AuthModal from '@/components/auth/AuthModal';
 import { toast } from 'sonner';
+import { GAME_STATE } from '@/hooks/game/types';
 
 const CrashGame: React.FC = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
@@ -28,6 +30,7 @@ const CrashGame: React.FC = () => {
     betError,
     handlePlaceBet,
     handleCashout,
+    resetPlayerState, // We'll use this function to reset player state
   } = useCrashGameEngine();
 
   // Monitor game state changes for debugging
@@ -35,8 +38,15 @@ const CrashGame: React.FC = () => {
     if (lastGameState !== gameState) {
       console.log(`Game state changed from ${lastGameState || 'initial'} to ${gameState}`);
       setLastGameState(gameState);
+      
+      // CRITICAL FIX: Reset player state when transitioning to WAITING state after a round
+      // This ensures previously cashed out players can bet in the new round
+      if (gameState === GAME_STATE.WAITING && lastGameState === GAME_STATE.CRASHED) {
+        console.log("Explicitly resetting player state in CrashGame component");
+        resetPlayerState();
+      }
     }
-  }, [gameState, lastGameState]);
+  }, [gameState, lastGameState, resetPlayerState]);
   
   // Monitor player bet/win state changes for debugging
   useEffect(() => {
