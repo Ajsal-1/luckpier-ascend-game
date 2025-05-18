@@ -1,3 +1,4 @@
+
 import { useEffect, useCallback, useRef } from 'react';
 import { useCrashRoundManager } from './game/useCrashRoundManager';
 import { useBetManager } from './game/useBetManager';
@@ -94,7 +95,7 @@ export const useCrashGameEngine = () => {
     }
   }, [isBetPlaced, playerWin, updateGameHistory, setPlayerBet, setPlayerAutoCashout]);
   
-  // Handle auto-cashout function
+  // Handle auto-cashout function - FIXED and improved to check more frequently
   const checkAutoCashout = useCallback((currentMultiplierValue: number) => {
     // If player has an auto-cashout set and we've reached or exceeded that value, cash out
     if (gameState === GAME_STATE.PLAYING && isBetPlaced && playerAutoCashout !== null && 
@@ -104,9 +105,11 @@ export const useCrashGameEngine = () => {
     }
   }, [gameState, isBetPlaced, playerAutoCashout, playerWin, handleCashout]);
   
-  // Handle auto-cashout
+  // Handle auto-cashout - check EVERY time multiplier changes for more precision
   useEffect(() => {
-    checkAutoCashout(currentMultiplier);
+    if (currentMultiplier > 1.0) {
+      checkAutoCashout(currentMultiplier);
+    }
   }, [currentMultiplier, checkAutoCashout]);
   
   // Fetch players when round changes
@@ -200,7 +203,7 @@ export const useCrashGameEngine = () => {
       // Also check for stuck PLAYING state without an active bet
       if (gameState === GAME_STATE.PLAYING && !isBetPlaced && !isProcessingBetRef.current && !isProcessingCashoutRef.current) {
         // This is a weird state - the game is playing but the user doesn't have an active bet
-        console.log("WARNING: Game is in PLAYING state but user doesn't have an active bet");
+        console.warn("WARNING: Game is in PLAYING state but user doesn't have an active bet");
       }
       
       // If the game is in CRASHED state for too long, force reset
@@ -212,8 +215,7 @@ export const useCrashGameEngine = () => {
     }, 10000); // Shortened to 10 seconds for faster detection
     
     return () => clearTimeout(emergencyResetTimer);
-  }, [countdownTimer, gameState, isBetPlaced, isProcessingBetRef.current, isProcessingCashoutRef.current, 
-      betErrorRef, setIsBetPlaced, setPlayerAutoCashout, setPlayerBet, setPlayerWin, resetRound]);
+  }, [countdownTimer, gameState, isBetPlaced, resetFailedRef, setIsBetPlaced, setPlayerAutoCashout, setPlayerBet, setPlayerWin, resetRound]);
   
   // Additional emergency reset for edge cases - completely reset game flow if needed
   useEffect(() => {
@@ -258,6 +260,7 @@ export const useCrashGameEngine = () => {
     playerBet,
     playerWin,
     isBetPlaced,
+    playerAutoCashout, // Export autoCashout value so UI can display it
     
     // Game data
     gameHistory,

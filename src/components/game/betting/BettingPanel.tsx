@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +21,8 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
   betError = null,
 }) => {
   const [betAmount, setBetAmount] = useState<string>('10.00');
-  const [autoCashout, setAutoCashout] = useState<string>('');
+  const [autoCashout, setAutoCashout] = useState<string>('1.50');
+  const [useAutoCashout, setUseAutoCashout] = useState<boolean>(true);
   
   // CRITICAL FIX: Improved logic for when to allow placing bets
   // Now we check game state first, ignoring hasWon if game state is COUNTDOWN or WAITING
@@ -47,7 +49,8 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
     const amount = parseFloat(betAmount);
     if (isNaN(amount) || amount <= 0) return;
     
-    const autoCashoutValue = autoCashout ? parseFloat(autoCashout) : null;
+    // Only pass autoCashout value if the checkbox is enabled
+    const autoCashoutValue = useAutoCashout ? parseFloat(autoCashout) : null;
     onPlaceBet(amount, autoCashoutValue);
   };
 
@@ -86,21 +89,34 @@ const BettingPanel: React.FC<BettingPanelProps> = ({
         />
       </div>
       
-      {/* Auto cashout input */}
+      {/* Auto cashout input with checkbox */}
       <div className="space-y-1">
-        <label htmlFor="autoCashout" className="text-xs text-gray-400">Auto Cashout (Optional)</label>
+        <div className="flex justify-between mb-1">
+          <label htmlFor="autoCashout" className="text-xs text-gray-400">Auto Cashout</label>
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="useAutoCashout"
+              checked={useAutoCashout}
+              onChange={(e) => setUseAutoCashout(e.target.checked)}
+              disabled={!canPlaceBet || isProcessingBet}
+              className="w-3.5 h-3.5 accent-green-500"
+            />
+            <label htmlFor="useAutoCashout" className="text-gray-400 text-xs ml-1.5">Enable</label>
+          </div>
+        </div>
         <Input
           id="autoCashout"
           type="number"
-          min="1.1"
-          step="0.1"
-          placeholder="e.g. 2.00"
+          min="1.01"
+          step="0.01"
+          placeholder="e.g. 1.50"
           value={autoCashout}
           onChange={(e) => setAutoCashout(e.target.value)}
-          disabled={!canPlaceBet || isProcessingBet}
-          className="bg-[#0d141e] border-gray-700"
+          disabled={!canPlaceBet || isProcessingBet || !useAutoCashout}
+          className={`bg-[#0d141e] border-gray-700 ${!useAutoCashout ? 'opacity-50' : ''}`}
         />
-        <div className="text-xs text-gray-500">Set a multiplier to auto-cashout</div>
+        <div className="text-xs text-gray-500">Set a multiplier to auto-cashout (min: 1.01x)</div>
       </div>
 
       {/* Error message */}

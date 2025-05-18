@@ -22,6 +22,7 @@ const CrashGame: React.FC = () => {
     playerBet,
     playerWin,
     isBetPlaced,
+    playerAutoCashout, // Get auto cashout value to show in UI if needed
     userBalance,
     isAuthenticated,
     players,
@@ -51,7 +52,11 @@ const CrashGame: React.FC = () => {
   // Monitor player bet/win state changes for debugging
   useEffect(() => {
     console.log(`Bet state: ${isBetPlaced ? 'PLACED' : 'NOT PLACED'}, Win state: ${playerWin !== null ? `WON at ${playerWin}x` : 'NO WIN'}`);
-  }, [isBetPlaced, playerWin]);
+    // Also log if auto cashout is set
+    if (playerAutoCashout) {
+      console.log(`Auto cashout set to ${playerAutoCashout}x`);
+    }
+  }, [isBetPlaced, playerWin, playerAutoCashout]);
 
   const onPlaceBet = async (amount: number, autoCashout?: number | null) => {
     if (!isAuthenticated) {
