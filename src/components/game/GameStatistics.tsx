@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -19,7 +18,8 @@ const GameStatistics: React.FC<GameStatisticsProps> = ({
   // Use the prop if provided, otherwise use the hook's last update
   const lastUpdate = propLastUpdate || hookLastUpdate;
   
-  // Format time since last update
+  // Format time since last update - keeping this function even though we're not displaying it
+  // in case we want to use it elsewhere later
   const getUpdateTime = () => {
     return formatDistanceToNow(lastUpdate, { addSuffix: true });
   };
@@ -35,14 +35,7 @@ const GameStatistics: React.FC<GameStatisticsProps> = ({
           </Badge>
         </div>
         
-        <motion.div
-          className="flex items-center text-xs text-gray-400"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-        >
-          <Clock className="w-3 h-3 mr-1" /> 
-          <span>Updated {getUpdateTime()}</span>
-        </motion.div>
+        {/* Removed the "Updated X time ago" element that was here */}
       </div>
       
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3 px-4">
