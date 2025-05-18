@@ -92,13 +92,19 @@ const CrashGame: React.FC = () => {
     <div className="w-full relative">
       {/* Game area with multiplier, betting panel and leaderboard */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Game Statistics - Now uses the hook internally */}
-        <div className="lg:col-span-12 mb-2">
-          <GameStatistics />
+        {/* Multiplier Display (Top) */}
+        <div className="lg:col-span-6 lg:col-start-4 order-1 bg-[#131c29] rounded-md flex items-center justify-center min-h-[240px] md:min-h-[320px] p-4 relative">
+          <SimpleMultiplier 
+            currentMultiplier={currentMultiplier}
+            gameState={gameState}
+            crashPoint={crashPoint}
+            remainingTime={countdownTimer}
+            playerWin={playerWin} // Pass playerWin to show cashout status
+          />
         </div>
         
-        {/* Betting Panel (Left on desktop) */}
-        <div className="lg:col-span-3 order-3 lg:order-1">
+        {/* Betting Panel (Left) */}
+        <div className="lg:col-span-3 lg:col-start-1 lg:row-start-1 order-3 lg:order-2">
           <BettingPanel
             isPlaying={gameState === 'playing'}
             isCrashed={gameState === 'crashed'}
@@ -115,24 +121,18 @@ const CrashGame: React.FC = () => {
           />
         </div>
         
-        {/* Multiplier Display (Center) */}
-        <div className="lg:col-span-6 order-1 lg:order-2 bg-[#131c29] rounded-md flex items-center justify-center min-h-[240px] md:min-h-[320px] p-4 relative">
-          <SimpleMultiplier 
-            currentMultiplier={currentMultiplier}
-            gameState={gameState}
-            crashPoint={crashPoint}
-            remainingTime={countdownTimer}
-            playerWin={playerWin} // Pass playerWin to show cashout status
-          />
+        {/* Leaderboard (Right) */}
+        <div className="lg:col-span-3 lg:col-start-10 lg:row-start-1 order-2 lg:order-3">
+          <LeaderBoard players={players} />
         </div>
         
-        {/* Leaderboard (Right) */}
-        <div className="lg:col-span-3 order-2 lg:order-3">
-          <LeaderBoard players={players} />
+        {/* Game Statistics - Now at the bottom */}
+        <div className="lg:col-span-12 order-4 mt-4">
+          <GameStatistics />
         </div>
       </div>
 
-      {/* Status Overlay - Now positioned at the bottom of the game interface */}
+      {/* Status Overlay */}
       <StatusOverlay 
         isCrashed={gameState === GAME_STATE.CRASHED} 
         isCashedOut={playerWin !== null && gameState === GAME_STATE.PLAYING}
