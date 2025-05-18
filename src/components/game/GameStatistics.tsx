@@ -61,18 +61,18 @@ const GameStatistics: React.FC<GameStatisticsProps> = ({
           </motion.div>
         </AnimatePresence>
         
-        {/* Players Won Today */}
+        {/* Consecutive Wins Record */}
         <AnimatePresence mode="wait">
           <motion.div 
-            key={`players-${stats.playersWon}`}
+            key={`streak-${stats.consecutiveWinRecord}`}
             className="bg-blue-900/10 border border-blue-900/20 rounded-lg p-3"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.3, delay: 0.1 }}
           >
-            <div className="text-xs text-gray-400 mb-1">Players Won Today</div>
-            <div className="text-lg font-semibold text-blue-400">{stats.playersWon.toLocaleString()}</div>
+            <div className="text-xs text-gray-400 mb-1">Consecutive Wins Record</div>
+            <div className="text-lg font-semibold text-blue-400">{stats.consecutiveWinRecord}</div>
           </motion.div>
         </AnimatePresence>
         
@@ -127,7 +127,7 @@ const GameStatistics: React.FC<GameStatisticsProps> = ({
       </div>
       
       <div className="text-center text-xs text-gray-500 mt-3 px-4">
-        Join the {stats.playersWon.toLocaleString()}+ winners! Place your bet now!
+        Can you beat the {stats.consecutiveWinRecord}-win streak record? Place your bet now!
       </div>
     </div>
   );
