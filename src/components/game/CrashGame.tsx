@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useCrashGameEngine } from '@/hooks/useCrashGameEngine';
+import { useMultiplayerCrashGame } from '@/hooks/game/useMultiplayerCrashGame';
 import BettingPanel from '@/components/game/betting/BettingPanel';
 import GameStatistics from '@/components/game/GameStatistics';
 import LeaderBoard from '@/components/game/LeaderBoard';
@@ -13,8 +13,8 @@ import { GAME_STATE } from '@/hooks/game/types';
 const CrashGame: React.FC = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [lastGameState, setLastGameState] = useState<string | null>(null);
-  const [lastMultiplierUpdate, setLastMultiplierUpdate] = useState<number>(0);
   
+  // Use the multiplayer hook instead of the single-player engine
   const {
     gameState,
     countdownTimer,
@@ -24,34 +24,31 @@ const CrashGame: React.FC = () => {
     playerBet,
     playerWin,
     isBetPlaced,
-    playerAutoCashout, // Get auto cashout value to show in UI if needed
+    playerAutoCashout,
     userBalance,
     isAuthenticated,
     players,
-    isProcessingBet,
-    isProcessingCashout,
-    betError,
+    currentRound,
     handlePlaceBet,
     handleCashout,
-    resetPlayerState, // We'll use this function to reset player state
-  } = useCrashGameEngine();
+    updateGameHistory,
+    fetchGameHistory,
+  } = useMultiplayerCrashGame();
 
-  // Monitor game state changes for debugging
+  // Process states for UI updates
+  const isProcessingBet = false;
+  const isProcessingCashout = false;
+  const betError = null;
+
+  // Monitor game state changes
   useEffect(() => {
     if (lastGameState !== gameState) {
       console.log(`Game state changed from ${lastGameState || 'initial'} to ${gameState}`);
       setLastGameState(gameState);
-      
-      // CRITICAL FIX: Reset player state when transitioning to WAITING state after a round
-      // This ensures previously cashed out players can bet in the new round
-      if (gameState === GAME_STATE.WAITING && lastGameState === GAME_STATE.CRASHED) {
-        console.log("Explicitly resetting player state in CrashGame component");
-        resetPlayerState(); // Fixed: Don't pass any arguments
-      }
     }
-  }, [gameState, lastGameState, resetPlayerState]);
+  }, [gameState, lastGameState]);
   
-  // Monitor player bet/win state changes for debugging
+  // Monitor player bet/win state changes 
   useEffect(() => {
     console.log(`Bet state: ${isBetPlaced ? 'PLACED' : 'NOT PLACED'}, Win state: ${playerWin !== null ? `WON at ${playerWin}x` : 'NO WIN'}`);
     // Also log if auto cashout is set
@@ -59,24 +56,6 @@ const CrashGame: React.FC = () => {
       console.log(`Auto cashout set to ${playerAutoCashout}x`);
     }
   }, [isBetPlaced, playerWin, playerAutoCashout]);
-
-  // Update fake players based on current multiplier (throttled)
-  useEffect(() => {
-    // Only update during PLAYING state and throttle updates to avoid excessive renders
-    if (gameState === GAME_STATE.PLAYING) {
-      const now = Date.now();
-      
-      // Throttle updates to every 200ms to prevent performance issues
-      if (now - lastMultiplierUpdate > 200) {
-        // The updateFakePlayers function is now available in useCrashGameEngine
-        if ((useCrashGameEngine as any).updateFakePlayers) {
-          (useCrashGameEngine as any).updateFakePlayers(currentMultiplier, crashPoint);
-        }
-        
-        setLastMultiplierUpdate(now);
-      }
-    }
-  }, [currentMultiplier, crashPoint, gameState, lastMultiplierUpdate, useCrashGameEngine]);
 
   const onPlaceBet = async (amount: number, autoCashout?: number | null) => {
     if (!isAuthenticated) {
@@ -99,7 +78,6 @@ const CrashGame: React.FC = () => {
     }
     
     try {
-      // Fixed: Remove the current multiplier argument from handleCashout
       await handleCashout();
     } catch (err) {
       console.error("Error in cashout handler:", err);
@@ -118,7 +96,7 @@ const CrashGame: React.FC = () => {
             gameState={gameState}
             crashPoint={crashPoint}
             remainingTime={countdownTimer}
-            playerWin={playerWin} // Pass playerWin to show cashout status
+            playerWin={playerWin}
           />
         </div>
         

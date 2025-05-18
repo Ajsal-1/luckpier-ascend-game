@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { GAME_STATE, HistoryItem, Player } from './types';
+import { useFakePlayers } from './useFakePlayers';
 
 export const useMultiplayerCrashGame = () => {
   // Game state
@@ -15,9 +16,13 @@ export const useMultiplayerCrashGame = () => {
   const [playerBet, setPlayerBet] = useState<number | null>(null);
   const [playerWin, setPlayerWin] = useState<number | null>(null);
   const [isBetPlaced, setIsBetPlaced] = useState<boolean>(false);
+  const [playerAutoCashout, setPlayerAutoCashout] = useState<number | null>(null);
   const [gameHistory, setGameHistory] = useState<HistoryItem[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isProcessingBet, setIsProcessingBet] = useState<boolean>(false);
+  const [isProcessingCashout, setIsProcessingCashout] = useState<boolean>(false);
+  const [betError, setBetError] = useState<string | null>(null);
   
   // Refs to track timers and animation frames
   const pollIntervalRef = useRef<number | null>(null);
@@ -38,6 +43,19 @@ export const useMultiplayerCrashGame = () => {
   const multiplierUpdateTimeoutRef = useRef<number | null>(null);
   const pendingMultiplierUpdatesRef = useRef<number[]>([]);
   const lastServerMultiplierRef = useRef<number>(1);
+  
+  // Get fake players management functions
+  const { 
+    generateFakePlayers, 
+    updateFakePlayersWithGameProgress, 
+    handleCrash: handleFakePlayersCrash 
+  } = useFakePlayers();
+  
+  // Enhanced function to fetch players with added fake players for realism
+  useEffect(() => {
+    // Initialize with some fake players
+    setPlayers(generateFakePlayers(Math.floor(Math.random() * 20) + 30));
+  }, [generateFakePlayers]);
   
   // Calculate multiplier based on start time - only uses client-side animation for smoothness
   const calculateCurrentMultiplier = useCallback((timestamp: number): number => {
@@ -104,22 +122,17 @@ export const useMultiplayerCrashGame = () => {
       return newHistory;
     });
     
-    // Update players
-    setPlayers(prev => 
-      prev.map(player => {
-        if (player.multiplier === null) {
-          return { ...player, multiplier: 0 }; // Lost
-        }
-        return player;
-      })
-    );
+    // Update players with the crash
+    setPlayers(prevPlayers => {
+      return handleFakePlayersCrash(prevPlayers);
+    });
     
     // Store crash time for cooldown
     lastCrashTime.current = Date.now();
     
     // Re-fetch history to sync with server
     fetchGameHistory();
-  }, [fetchGameHistory]);
+  }, [fetchGameHistory, handleFakePlayersCrash]);
   
   // Process pending multiplier updates with debouncing to smooth animations
   const processPendingMultiplierUpdates = useCallback(() => {
@@ -133,6 +146,11 @@ export const useMultiplayerCrashGame = () => {
         setCurrentMultiplier(maxMultiplier);
         lastMultiplierRef.current = maxMultiplier;
         console.log(`Updated multiplier to: ${maxMultiplier.toFixed(2)}x`);
+        
+        // Also update fake players based on the new multiplier value
+        setPlayers(prevPlayers => {
+          return updateFakePlayersWithGameProgress(prevPlayers, maxMultiplier, crashPoint);
+        });
       }
       
       // Clear pending updates
@@ -141,7 +159,7 @@ export const useMultiplayerCrashGame = () => {
     
     // Clear timeout reference
     multiplierUpdateTimeoutRef.current = null;
-  }, []);
+  }, [crashPoint, updateFakePlayersWithGameProgress]);
   
   // Smooth multiplier animation using requestAnimationFrame for more precise control
   const animateMultiplier = useCallback((timestamp: number) => {
@@ -265,12 +283,16 @@ export const useMultiplayerCrashGame = () => {
           userId: bet.user_id
         }));
         
-        setPlayers(formattedPlayers);
+        // Combine real players with fake players
+        const realPlayers = formattedPlayers;
+        const existingFakes = players.filter(p => p.id.startsWith('fake-'));
+        
+        setPlayers([...realPlayers, ...existingFakes]);
       }
     } catch (err) {
       console.error('Error fetching players:', err);
     }
-  }, [currentRound]);
+  }, [currentRound, players]);
   
   // Handle crash event with retry logic
   const pollGameEngine = useCallback(async () => {
@@ -375,8 +397,10 @@ export const useMultiplayerCrashGame = () => {
               // Reset player state for next round
               setTimeout(() => {
                 setPlayerBet(null);
+                setPlayerAutoCashout(null);
                 setPlayerWin(null);
                 setIsBetPlaced(false);
+                setBetError(null);
                 setGameState(GAME_STATE.COUNTDOWN); // Move to countdown for next round
               }, 5000); // Wait for cooldown period (standardized)
             } else {
@@ -399,6 +423,15 @@ export const useMultiplayerCrashGame = () => {
           setCountdownTimer(countdown);
           serverCountdownValueRef.current = countdown;
           lastCountdownUpdateRef.current = Date.now();
+          
+          // Generate new set of fake players for this round
+          setPlayers(prevPlayers => {
+            // Keep only the real players (non-fake)
+            const realPlayers = prevPlayers.filter(p => !p.id.startsWith('fake-'));
+            // Generate new fake players
+            const newFakePlayers = generateFakePlayers(Math.floor(Math.random() * 20) + 30);
+            return [...realPlayers, ...newFakePlayers];
+          });
         } else {
           // Just update the timer and store server value
           const countdown = data.countdown || 5;
@@ -451,7 +484,7 @@ export const useMultiplayerCrashGame = () => {
       console.error('Error in pollGameEngine:', error);
       gameEngineErrorCount.current++;
     }
-  }, [fetchGameHistory, gameState, isBetPlaced, playerWin, processPendingMultiplierUpdates, startMultiplierAnimation, updateGameHistory]);
+  }, [fetchGameHistory, gameState, generateFakePlayers, isBetPlaced, playerWin, processPendingMultiplierUpdates, startMultiplierAnimation, updateGameHistory]);
   
   // Place bet function - IMPROVED ERROR HANDLING
   const handlePlaceBet = useCallback(async (amount: number, autoCashoutAt?: number | null) => {
@@ -473,6 +506,8 @@ export const useMultiplayerCrashGame = () => {
     }
     
     console.log(`Attempting to place bet: $${amount}`);
+    setIsProcessingBet(true);
+    setBetError(null);
     
     try {
       // Get the current session for the auth header
@@ -500,15 +535,18 @@ export const useMultiplayerCrashGame = () => {
       
       if (response.error) {
         console.error('Error placing bet:', response.error);
+        setBetError(response.error.message || 'Failed to place bet');
         throw new Error(response.error.message || 'Failed to place bet');
       }
       
       if (response.data && response.data.error) {
         console.error('Server error placing bet:', response.data.error);
+        setBetError(response.data.error);
         throw new Error(response.data.error);
       }
       
       if (!response.data || !response.data.success) {
+        setBetError('Failed to place bet - no success response');
         throw new Error('Failed to place bet - no success response');
       }
       
@@ -516,6 +554,7 @@ export const useMultiplayerCrashGame = () => {
       
       // Update local state
       setPlayerBet(amount);
+      setPlayerAutoCashout(autoCashoutAt || null);
       setIsBetPlaced(true);
       setPlayerWin(null);
       
@@ -538,8 +577,11 @@ export const useMultiplayerCrashGame = () => {
       return response.data;
     } catch (err: any) {
       console.error('Error in handlePlaceBet:', err);
+      setBetError(err.message || 'Failed to place bet');
       toast.error(err.message || 'Failed to place bet', { position: 'top-center' });
       throw err;
+    } finally {
+      setIsProcessingBet(false);
     }
   }, [currentRound, fetchPlayers, gameState, isAuthenticated]);
   
@@ -568,6 +610,8 @@ export const useMultiplayerCrashGame = () => {
     if (playerWin !== null) {
       throw new Error('You have already cashed out this round');
     }
+    
+    setIsProcessingCashout(true);
     
     try {
       const cashoutMultiplier = currentMultiplier;
@@ -640,6 +684,8 @@ export const useMultiplayerCrashGame = () => {
       console.error('Error in handleCashout:', err);
       toast.error(err.message || 'Failed to cash out', { position: 'top-center' });
       throw err;
+    } finally {
+      setIsProcessingCashout(false);
     }
   }, [currentMultiplier, currentRound, fetchPlayers, gameState, isAuthenticated, isBetPlaced, isRoundActive, playerBet, playerWin]);
   
@@ -713,16 +759,44 @@ export const useMultiplayerCrashGame = () => {
     };
   }, [fetchGameHistory, pollGameEngine]);
   
-  // Update players list periodically
+  // Update players list periodically for new joiners
   useEffect(() => {
-    fetchPlayers();
-    
-    const playersInterval = setInterval(fetchPlayers, 2000);
-    
-    return () => {
-      clearInterval(playersInterval);
-    };
-  }, [fetchPlayers]);
+    if (gameState === GAME_STATE.COUNTDOWN || gameState === GAME_STATE.WAITING) {
+      const playersJoinInterval = setInterval(() => {
+        // During countdown, have new players join periodically
+        setPlayers(prevPlayers => {
+          // Only add new fake players if countdown is still happening
+          if (countdownTimer && countdownTimer > 0) {
+            // Add 1-3 new players with animation
+            const newCount = Math.floor(Math.random() * 3) + 1;
+            const newFakePlayers = generateFakePlayers(newCount);
+            return [...prevPlayers, ...newFakePlayers];
+          }
+          return prevPlayers;
+        });
+      }, 1500); // Every 1.5 seconds
+      
+      return () => clearInterval(playersJoinInterval);
+    }
+  }, [gameState, countdownTimer, generateFakePlayers]);
+  
+  // Auto-cashout logic
+  useEffect(() => {
+    // If player has an auto-cashout set and we've reached or exceeded that value, cash out
+    if (
+      gameState === GAME_STATE.PLAYING && 
+      isBetPlaced && 
+      playerAutoCashout !== null && 
+      currentMultiplier >= playerAutoCashout && 
+      playerWin === null &&
+      !isProcessingCashout
+    ) {
+      console.log(`Auto-cashout triggered at ${currentMultiplier.toFixed(2)}x (target: ${playerAutoCashout}x)`);
+      handleCashout().catch(err => {
+        console.error("Auto-cashout failed:", err);
+      });
+    }
+  }, [currentMultiplier, gameState, handleCashout, isBetPlaced, isProcessingCashout, playerAutoCashout, playerWin]);
   
   // Realtime subscription for crash events
   useEffect(() => {
@@ -775,13 +849,20 @@ export const useMultiplayerCrashGame = () => {
     playerBet,
     playerWin,
     isBetPlaced,
+    playerAutoCashout,
     gameHistory,
     players,
     isAuthenticated,
     currentRound,
+    userBalance,
+    isProcessingBet,
+    isProcessingCashout,
+    betError,
     handlePlaceBet,
     handleCashout,
     updateGameHistory,
-    fetchGameHistory, // Added fetchGameHistory to the returned object
+    fetchGameHistory,
   };
 };
+
+export default useMultiplayerCrashGame;
