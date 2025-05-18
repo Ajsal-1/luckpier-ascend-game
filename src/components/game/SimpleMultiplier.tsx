@@ -27,6 +27,7 @@ const SimpleMultiplier: React.FC<SimpleMultiplierProps> = ({
     } else if (gameState === GAME_STATE.PLAYING) {
       return formatMultiplier(currentMultiplier);
     } else if (gameState === GAME_STATE.CRASHED && crashPoint) {
+      // Fixed: Always show the actual crash point, not the currentMultiplier
       return `CRASHED AT ${formatMultiplier(crashPoint)}`;
     } else {
       return 'WAITING';

@@ -31,7 +31,7 @@ export const useSmoothMultiplier = ({
     const elapsed = (timestamp - startTimeRef.current) / 1000;
     
     // Calculate the new multiplier using the exact formula:
-    // multiplier = 1 + (elapsedTimeInSeconds)^1.3
+    // multiplier = e^(growthRate * elapsed)
     const newMultiplier = Math.pow(Math.E, growthRate * elapsed);
     
     // Round to 2 decimal places for display consistency
@@ -53,8 +53,12 @@ export const useSmoothMultiplier = ({
       if (!hasCrashedRef.current) {
         console.log(`Crash detected at ${roundedMultiplier.toFixed(2)}x`);
         hasCrashedRef.current = true;
-        onCrash(roundedMultiplier);
         
+        // Important fix: Use the exact crash point value from the server
+        // instead of the current multiplier to ensure consistency
+        onCrash(crashPoint);
+        
+        // Stop the animation immediately when crash is detected
         if (animationRef.current) {
           cancelAnimationFrame(animationRef.current);
           animationRef.current = null;
@@ -69,13 +73,17 @@ export const useSmoothMultiplier = ({
 
   // Start or stop the animation based on game state
   useEffect(() => {
+    // Fixed: Properly reset hasCrashed state when game state changes
+    if (!isPlaying) {
+      hasCrashedRef.current = false;
+    }
+    
     if (isPlaying && !hasCrashedRef.current) {
       console.log("Starting multiplier animation");
       // Reset the animation state
       startTimeRef.current = null;
       lastMultiplierRef.current = 1.0;
       setCurrentMultiplier(1.0);
-      hasCrashedRef.current = false;
       
       // Start the animation
       animationRef.current = requestAnimationFrame(animateMultiplier);
