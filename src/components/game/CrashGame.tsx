@@ -121,6 +121,7 @@ const CrashGame: React.FC = () => {
             gameState={gameState}
             crashPoint={crashPoint}
             remainingTime={countdownTimer}
+            playerWin={playerWin} // Pass playerWin to show cashout status
           />
         </div>
         
