@@ -5,6 +5,7 @@ import BettingPanel from '@/components/game/betting/BettingPanel';
 import GameStatistics from '@/components/game/GameStatistics';
 import LeaderBoard from '@/components/game/LeaderBoard';
 import SimpleMultiplier from '@/components/game/SimpleMultiplier';
+import StatusOverlay from '@/components/game/StatusOverlay';
 import AuthModal from '@/components/auth/AuthModal';
 import { toast } from 'sonner';
 import { GAME_STATE } from '@/hooks/game/types';
@@ -88,7 +89,7 @@ const CrashGame: React.FC = () => {
   };
 
   return (
-    <div className="w-full">
+    <div className="w-full relative">
       {/* Game area with multiplier, betting panel and leaderboard */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* Game Statistics - Now uses the hook internally */}
@@ -130,6 +131,12 @@ const CrashGame: React.FC = () => {
           <LeaderBoard players={players} />
         </div>
       </div>
+
+      {/* Status Overlay - Now positioned at the bottom of the game interface */}
+      <StatusOverlay 
+        isCrashed={gameState === GAME_STATE.CRASHED} 
+        isCashedOut={playerWin !== null && gameState === GAME_STATE.PLAYING}
+      />
 
       {/* Auth Modal */}
       <AuthModal
